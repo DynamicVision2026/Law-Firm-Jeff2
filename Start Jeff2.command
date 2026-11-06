@@ -17,6 +17,8 @@ if [ ! -f .env ]; then
 fi
 
 set -a; . ./.env; set +a
+# Let Node use the same proxy/VPN settings as curl (HTTPS_PROXY etc.), if any are set
+export NODE_USE_ENV_PROXY=1
 PORT="${PORT:-8000}"
 BRIDGE_PID=""
 

@@ -78,7 +78,8 @@ never repeat personal names, addresses or contact details; be calm, plain and ki
 const STATUS = { lastAiError: null, lastAiErrorAt: null, aiOk: 0, aiFailed: 0 };
 function aiFailed(where, e) {
   STATUS.aiFailed++;
-  STATUS.lastAiError = `${where}: ${String(e.message || e).slice(0, 400)}`;
+  const cause = e.cause ? ` (cause: ${e.cause.code || ""} ${e.cause.message || e.cause})` : "";
+  STATUS.lastAiError = `${where}: ${String(e.message || e).slice(0, 300)}${cause}`.slice(0, 500);
   STATUS.lastAiErrorAt = new Date().toISOString();
   console.error("[AI error]", STATUS.lastAiError);
 }
@@ -276,7 +277,10 @@ async function log(rec) {
 
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".json": "application/json; charset=utf-8", ".css": "text/css" };
 async function status() {
-  return { ai: MOCK ? "test mode (no key)" : MODEL, jeff: JEFF_URL || "off", password: !!SITE_PASSWORD, ...STATUS };
+  const proxy = process.env.HTTPS_PROXY || process.env.https_proxy || process.env.ALL_PROXY || process.env.all_proxy || "";
+  return { ai: MOCK ? "test mode (no key)" : MODEL, jeff: JEFF_URL || "off", password: !!SITE_PASSWORD,
+    proxyEnv: proxy ? proxy.replace(/\/\/[^@]*@/, "//***@") : "none", nodeUsesProxy: process.env.NODE_USE_ENV_PROXY === "1",
+    node: process.version, ...STATUS };
 }
 
 const ROUTES = { "/api/triage": triage, "/api/report": report, "/api/feedback": feedback, "/api/status": status };
