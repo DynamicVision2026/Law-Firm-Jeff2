@@ -40,8 +40,12 @@ if [ -n "$JEFF_DIR" ]; then
   echo "Preparing Jeff..."
   # Install every part of the Jeff workspace (SDK + Mac engine). Takes a second when nothing changed.
   uv sync --project "$JEFF_DIR" --all-packages --quiet || echo "Jeff install step reported a problem (see above)."
+  # macOS can mark the files that point Python at Jeff's code as "hidden", and Python then skips them.
+  # Unhide them, and also tell Python directly where Jeff's code lives.
+  chflags -R nohidden "$JEFF_DIR/.venv" 2>/dev/null
+  JEFF_SRC="$JEFF_DIR/packages/python/src:$JEFF_DIR/runtime/python/src:$JEFF_DIR/apps/server/src"
   echo "Starting Jeff (the first time it downloads the model, ~1.7 GB)..."
-  JEFF_BACKEND=mlx uv run --no-sync --project "$JEFF_DIR" python "$PWD/jeff-bridge/bridge.py" &
+  PYTHONPATH="$JEFF_SRC" JEFF_BACKEND=mlx uv run --no-sync --project "$JEFF_DIR" python "$PWD/jeff-bridge/bridge.py" &
   BRIDGE_PID=$!
   for _ in $(seq 1 600); do
     curl -s http://localhost:8790/health >/dev/null 2>&1 && break
