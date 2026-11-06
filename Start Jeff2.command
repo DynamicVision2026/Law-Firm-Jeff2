@@ -26,7 +26,7 @@ security find-certificate -a -p /System/Library/Keychains/SystemRootCertificates
   /Library/Keychains/System.keychain "$HOME/Library/Keychains/login.keychain-db" > data/mac-certs.pem 2>/dev/null
 [ -s data/mac-certs.pem ] && export NODE_EXTRA_CA_CERTS="$PWD/data/mac-certs.pem" SSL_CERT_FILE="$PWD/data/mac-certs.pem" \
   REQUESTS_CA_BUNDLE="$PWD/data/mac-certs.pem"
-export UV_NATIVE_TLS=1  # uv uses the Mac's trusted certificates too
+export UV_SYSTEM_CERTS=1  # uv uses the Mac's trusted certificates too
 # Accept JEFF_DIR with or without the leading slash
 [ -n "$JEFF_DIR" ] && [ "${JEFF_DIR#/}" = "$JEFF_DIR" ] && JEFF_DIR="/$JEFF_DIR"
 PORT="${PORT:-8000}"
@@ -37,8 +37,11 @@ if [ -n "$JEFF_DIR" ]; then
     echo "Jeff needs 'uv'. Install it with:  curl -LsSf https://astral.sh/uv/install.sh | sh   — then try again."
     read -r -p "Press Enter to close."; exit 1
   fi
+  echo "Preparing Jeff..."
+  # Install every part of the Jeff workspace (SDK + Mac engine). Takes a second when nothing changed.
+  uv sync --project "$JEFF_DIR" --all-packages --quiet || echo "Jeff install step reported a problem (see above)."
   echo "Starting Jeff (the first time it downloads the model, ~1.7 GB)..."
-  JEFF_BACKEND=mlx uv run --project "$JEFF_DIR" python "$PWD/jeff-bridge/bridge.py" &
+  JEFF_BACKEND=mlx uv run --no-sync --project "$JEFF_DIR" python "$PWD/jeff-bridge/bridge.py" &
   BRIDGE_PID=$!
   for _ in $(seq 1 600); do
     curl -s http://localhost:8790/health >/dev/null 2>&1 && break
