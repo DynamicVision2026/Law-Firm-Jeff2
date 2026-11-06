@@ -56,18 +56,30 @@ export function redact(text) {
 
 // ---------- AI calls ----------
 
-async function llmJSON(system, user) {
+async function llmJSONOnce(system, user) {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: MODEL, max_tokens: 900, system, messages: [{ role: "user", content: user }] }),
+    body: JSON.stringify({ model: MODEL, max_tokens: 2500, system, messages: [{ role: "user", content: user }] }),
   });
-  if (!res.ok) throw new Error(`LLM ${res.status}: ${await res.text()}`);
+  if (!res.ok) throw new Error(`LLM ${res.status}: ${(await res.text()).slice(0, 300)}`);
   const data = await res.json();
-  const text = data.content?.map((b) => b.text || "").join("") || "";
+  const text = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
   const start = text.indexOf("{"), end = text.lastIndexOf("}");
-  if (start < 0 || end < start) throw new Error("AI reply had no JSON: " + text.slice(0, 200));
+  if (start < 0 || end < start) {
+    const kinds = (data.content || []).map((b) => b.type).join(",") || "none";
+    throw new Error(`AI reply had no JSON (stop: ${data.stop_reason}, blocks: ${kinds}): ${text.slice(0, 150)}`);
+  }
   return JSON.parse(text.slice(start, end + 1));
+}
+
+// One automatic retry: an occasional empty or cut-off reply should not reach the person.
+async function llmJSON(system, user) {
+  try { return await llmJSONOnce(system, user); }
+  catch (e) {
+    if (/LLM 4(00|01|03)/.test(e.message)) throw e; // bad key or request: retrying won't help
+    return await llmJSONOnce(system, user);
+  }
 }
 
 const GUARDRAILS = `You are the triage step of a free legal pre-check run under lawyer supervision.
