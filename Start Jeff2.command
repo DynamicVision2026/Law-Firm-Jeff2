@@ -56,7 +56,7 @@ if [ "$SHARE" = "yes" ]; then
   fi
 fi
 
-node server/server.mjs &
+node --use-system-ca server/server.mjs &
 SERVER_PID=$!
 sleep 2
 open "http://localhost:$PORT/web/"
