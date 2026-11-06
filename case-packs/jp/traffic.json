@@ -9,51 +9,98 @@
     "reviewed_on": "",
     "notes_for_reviewers": "DRAFT by Claude for lawyer review. All amounts, deadlines and wording must be checked against the current 赤い本 edition and 民法 before going live."
   },
-
   "questions": [
     {
       "id": "injured",
       "text": "事故でケガをしましたか？",
       "type": "single",
       "options": [
-        { "value": "yes", "label": "はい" },
-        { "value": "no", "label": "いいえ（物損のみ）" }
+        {
+          "value": "yes",
+          "label": "はい"
+        },
+        {
+          "value": "no",
+          "label": "いいえ（物損のみ）"
+        }
       ]
     },
     {
       "id": "injury_type",
       "text": "主なケガの種類は？",
       "type": "single",
-      "show_if": { "injured": "yes" },
+      "show_if": {
+        "injured": "yes"
+      },
       "options": [
-        { "value": "whiplash", "label": "むちうち・打撲・ねんざ" },
-        { "value": "fracture", "label": "骨折" },
-        { "value": "serious", "label": "頭部・内臓など重いケガ" },
-        { "value": "unknown", "label": "わからない" }
+        {
+          "value": "whiplash",
+          "label": "むちうち・打撲・ねんざ"
+        },
+        {
+          "value": "fracture",
+          "label": "骨折"
+        },
+        {
+          "value": "serious",
+          "label": "頭部・内臓など重いケガ"
+        },
+        {
+          "value": "unknown",
+          "label": "わからない"
+        }
       ]
     },
     {
       "id": "treatment_months",
       "text": "これまでの通院・入院期間は？",
       "type": "single",
-      "show_if": { "injured": "yes" },
+      "show_if": {
+        "injured": "yes"
+      },
       "options": [
-        { "value": "0", "label": "まだ通院していない" },
-        { "value": "1", "label": "1ヶ月未満" },
-        { "value": "3", "label": "1〜3ヶ月" },
-        { "value": "6", "label": "3〜6ヶ月" },
-        { "value": "7", "label": "6ヶ月以上" }
+        {
+          "value": "0",
+          "label": "まだ通院していない"
+        },
+        {
+          "value": "1",
+          "label": "1ヶ月未満"
+        },
+        {
+          "value": "3",
+          "label": "1〜3ヶ月"
+        },
+        {
+          "value": "6",
+          "label": "3〜6ヶ月"
+        },
+        {
+          "value": "7",
+          "label": "6ヶ月以上"
+        }
       ]
     },
     {
       "id": "treatment_status",
       "text": "治療の状況は？",
       "type": "single",
-      "show_if": { "injured": "yes" },
+      "show_if": {
+        "injured": "yes"
+      },
       "options": [
-        { "value": "ongoing", "label": "治療中" },
-        { "value": "finished", "label": "治療が終わった" },
-        { "value": "fixed", "label": "医師から「症状固定」と言われた" }
+        {
+          "value": "ongoing",
+          "label": "治療中"
+        },
+        {
+          "value": "finished",
+          "label": "治療が終わった"
+        },
+        {
+          "value": "fixed",
+          "label": "医師から「症状固定」と言われた"
+        }
       ]
     },
     {
@@ -61,11 +108,26 @@
       "text": "事故の過失割合は（わかる範囲で）？",
       "type": "single",
       "options": [
-        { "value": "other_100", "label": "相手が100%悪い（追突など）" },
-        { "value": "other_most", "label": "主に相手が悪い" },
-        { "value": "shared", "label": "お互い同じくらい" },
-        { "value": "me_most", "label": "主に自分が悪い" },
-        { "value": "unknown", "label": "わからない" }
+        {
+          "value": "other_100",
+          "label": "相手が100%悪い（追突など）"
+        },
+        {
+          "value": "other_most",
+          "label": "主に相手が悪い"
+        },
+        {
+          "value": "shared",
+          "label": "お互い同じくらい"
+        },
+        {
+          "value": "me_most",
+          "label": "主に自分が悪い"
+        },
+        {
+          "value": "unknown",
+          "label": "わからない"
+        }
       ]
     },
     {
@@ -73,9 +135,18 @@
       "text": "保険会社から示談金の提示はありましたか？",
       "type": "single",
       "options": [
-        { "value": "none", "label": "まだない" },
-        { "value": "offered", "label": "提示があったが、まだ合意していない" },
-        { "value": "signed", "label": "すでに示談書にサインした" }
+        {
+          "value": "none",
+          "label": "まだない"
+        },
+        {
+          "value": "offered",
+          "label": "提示があったが、まだ合意していない"
+        },
+        {
+          "value": "signed",
+          "label": "すでに示談書にサインした"
+        }
       ]
     },
     {
@@ -84,9 +155,18 @@
       "type": "single",
       "help": "ご家族の保険の特約が使える場合もあります。",
       "options": [
-        { "value": "yes", "label": "ついている" },
-        { "value": "no", "label": "ついていない" },
-        { "value": "unknown", "label": "わからない" }
+        {
+          "value": "yes",
+          "label": "ついている"
+        },
+        {
+          "value": "no",
+          "label": "ついていない"
+        },
+        {
+          "value": "unknown",
+          "label": "わからない"
+        }
       ]
     },
     {
@@ -94,16 +174,218 @@
       "text": "事故はいつ起きましたか？",
       "type": "single",
       "options": [
-        { "value": "lt1y", "label": "1年以内" },
-        { "value": "1to3y", "label": "1〜3年前" },
-        { "value": "3to5y", "label": "3〜5年前" },
-        { "value": "gt5y", "label": "5年以上前" }
+        {
+          "value": "lt1y",
+          "label": "1年以内"
+        },
+        {
+          "value": "1to3y",
+          "label": "1〜3年前"
+        },
+        {
+          "value": "3to5y",
+          "label": "3〜5年前"
+        },
+        {
+          "value": "gt5y",
+          "label": "5年以上前"
+        }
       ]
     },
     {
       "id": "region",
       "text": "お住まいの都道府県",
-      "type": "prefecture"
+      "type": "single",
+      "options": [
+        {
+          "value": "北海道",
+          "label": "北海道"
+        },
+        {
+          "value": "青森県",
+          "label": "青森県"
+        },
+        {
+          "value": "岩手県",
+          "label": "岩手県"
+        },
+        {
+          "value": "宮城県",
+          "label": "宮城県"
+        },
+        {
+          "value": "秋田県",
+          "label": "秋田県"
+        },
+        {
+          "value": "山形県",
+          "label": "山形県"
+        },
+        {
+          "value": "福島県",
+          "label": "福島県"
+        },
+        {
+          "value": "茨城県",
+          "label": "茨城県"
+        },
+        {
+          "value": "栃木県",
+          "label": "栃木県"
+        },
+        {
+          "value": "群馬県",
+          "label": "群馬県"
+        },
+        {
+          "value": "埼玉県",
+          "label": "埼玉県"
+        },
+        {
+          "value": "千葉県",
+          "label": "千葉県"
+        },
+        {
+          "value": "東京都",
+          "label": "東京都"
+        },
+        {
+          "value": "神奈川県",
+          "label": "神奈川県"
+        },
+        {
+          "value": "新潟県",
+          "label": "新潟県"
+        },
+        {
+          "value": "富山県",
+          "label": "富山県"
+        },
+        {
+          "value": "石川県",
+          "label": "石川県"
+        },
+        {
+          "value": "福井県",
+          "label": "福井県"
+        },
+        {
+          "value": "山梨県",
+          "label": "山梨県"
+        },
+        {
+          "value": "長野県",
+          "label": "長野県"
+        },
+        {
+          "value": "岐阜県",
+          "label": "岐阜県"
+        },
+        {
+          "value": "静岡県",
+          "label": "静岡県"
+        },
+        {
+          "value": "愛知県",
+          "label": "愛知県"
+        },
+        {
+          "value": "三重県",
+          "label": "三重県"
+        },
+        {
+          "value": "滋賀県",
+          "label": "滋賀県"
+        },
+        {
+          "value": "京都府",
+          "label": "京都府"
+        },
+        {
+          "value": "大阪府",
+          "label": "大阪府"
+        },
+        {
+          "value": "兵庫県",
+          "label": "兵庫県"
+        },
+        {
+          "value": "奈良県",
+          "label": "奈良県"
+        },
+        {
+          "value": "和歌山県",
+          "label": "和歌山県"
+        },
+        {
+          "value": "鳥取県",
+          "label": "鳥取県"
+        },
+        {
+          "value": "島根県",
+          "label": "島根県"
+        },
+        {
+          "value": "岡山県",
+          "label": "岡山県"
+        },
+        {
+          "value": "広島県",
+          "label": "広島県"
+        },
+        {
+          "value": "山口県",
+          "label": "山口県"
+        },
+        {
+          "value": "徳島県",
+          "label": "徳島県"
+        },
+        {
+          "value": "香川県",
+          "label": "香川県"
+        },
+        {
+          "value": "愛媛県",
+          "label": "愛媛県"
+        },
+        {
+          "value": "高知県",
+          "label": "高知県"
+        },
+        {
+          "value": "福岡県",
+          "label": "福岡県"
+        },
+        {
+          "value": "佐賀県",
+          "label": "佐賀県"
+        },
+        {
+          "value": "長崎県",
+          "label": "長崎県"
+        },
+        {
+          "value": "熊本県",
+          "label": "熊本県"
+        },
+        {
+          "value": "大分県",
+          "label": "大分県"
+        },
+        {
+          "value": "宮崎県",
+          "label": "宮崎県"
+        },
+        {
+          "value": "鹿児島県",
+          "label": "鹿児島県"
+        },
+        {
+          "value": "沖縄県",
+          "label": "沖縄県"
+        }
+      ]
     },
     {
       "id": "story",
@@ -113,15 +395,21 @@
       "optional": true
     }
   ],
-
   "jeff": {
     "recommendation": {
       "question": "Should this person consult a lawyer about this traffic accident?",
-      "options": ["high", "medium", "low"]
+      "options": [
+        "high",
+        "medium",
+        "low"
+      ]
     },
     "urgency": {
       "question": "How urgent is this case?",
-      "options": ["urgent", "normal"]
+      "options": [
+        "urgent",
+        "normal"
+      ]
     },
     "factors": {
       "question": "Which of these factors apply to this case? (choose all that apply)",
@@ -139,27 +427,240 @@
     },
     "review_threshold": 0.6
   },
-
+  "rules": {
+    "_comment": "Lawyer-written scoring used when Jeff is not running, and as the comparison baseline. DRAFT.",
+    "score": [
+      {
+        "if": {
+          "injured": "yes"
+        },
+        "add": 2
+      },
+      {
+        "if": {
+          "injury_type": "fracture"
+        },
+        "add": 2
+      },
+      {
+        "if": {
+          "injury_type": "serious"
+        },
+        "add": 4
+      },
+      {
+        "if": {
+          "treatment_months": "3"
+        },
+        "add": 1
+      },
+      {
+        "if": {
+          "treatment_months": [
+            "6",
+            "7"
+          ]
+        },
+        "add": 2
+      },
+      {
+        "if": {
+          "treatment_status": "fixed"
+        },
+        "add": 2
+      },
+      {
+        "if": {
+          "fault": [
+            "other_100",
+            "other_most"
+          ]
+        },
+        "add": 1
+      },
+      {
+        "if": {
+          "fault": "shared"
+        },
+        "add": 1
+      },
+      {
+        "if": {
+          "insurer_offer": "offered"
+        },
+        "add": 2
+      },
+      {
+        "if": {
+          "lawyer_rider": "yes"
+        },
+        "add": 2
+      },
+      {
+        "if": {
+          "fault": "me_most"
+        },
+        "add": -1
+      },
+      {
+        "if": {
+          "injured": "no"
+        },
+        "add": -1
+      }
+    ],
+    "recommendation_levels": {
+      "high": 6,
+      "medium": 3
+    },
+    "value_levels": {
+      "high": 7,
+      "medium": 3
+    },
+    "factors": [
+      {
+        "factor": "serious_injury",
+        "if": {
+          "injury_type": [
+            "fracture",
+            "serious"
+          ]
+        }
+      },
+      {
+        "factor": "possible_after_effects",
+        "if": {
+          "treatment_status": "fixed"
+        }
+      },
+      {
+        "factor": "offer_received",
+        "if": {
+          "insurer_offer": "offered"
+        }
+      },
+      {
+        "factor": "long_treatment",
+        "if": {
+          "treatment_months": [
+            "6",
+            "7"
+          ]
+        }
+      },
+      {
+        "factor": "lawyer_rider",
+        "if": {
+          "lawyer_rider": "yes"
+        }
+      },
+      {
+        "factor": "fault_disputed",
+        "if": {
+          "fault": [
+            "shared",
+            "unknown"
+          ]
+        }
+      },
+      {
+        "factor": "other_party_at_fault",
+        "if": {
+          "fault": [
+            "other_100",
+            "other_most"
+          ]
+        }
+      },
+      {
+        "factor": "property_only",
+        "if": {
+          "injured": "no"
+        }
+      }
+    ],
+    "urgency": [
+      {
+        "if": {
+          "insurer_offer": "signed"
+        }
+      },
+      {
+        "if": {
+          "accident_when": [
+            "3to5y",
+            "gt5y"
+          ]
+        }
+      },
+      {
+        "if": {
+          "insurer_offer": "offered"
+        }
+      }
+    ]
+  },
   "calculator": {
     "basis": "赤い本（民事交通事故訴訟 損害賠償額算定基準）入通院慰謝料の目安 — 版の確認が必要",
     "unit": "万円",
-    "applies_if": { "injured": "yes" },
+    "applies_if": {
+      "injured": "yes"
+    },
     "table_key": "treatment_months",
     "tables": {
       "minor": {
-        "used_for": ["whiplash"],
+        "used_for": [
+          "whiplash"
+        ],
         "label": "むちうち等（別表II相当）",
-        "ranges": { "1": [15, 19], "3": [40, 53], "6": [70, 89], "7": [89, 120] }
+        "ranges": {
+          "1": [
+            15,
+            19
+          ],
+          "3": [
+            40,
+            53
+          ],
+          "6": [
+            70,
+            89
+          ],
+          "7": [
+            89,
+            120
+          ]
+        }
       },
       "standard": {
-        "used_for": ["fracture", "serious", "unknown"],
+        "used_for": [
+          "fracture",
+          "serious",
+          "unknown"
+        ],
         "label": "骨折等（別表I相当）",
-        "ranges": { "1": [20, 28], "3": [55, 73], "6": [90, 116], "7": [116, 160] }
+        "ranges": {
+          "1": [
+            20,
+            28
+          ],
+          "3": [
+            55,
+            73
+          ],
+          "6": [
+            90,
+            116
+          ],
+          "7": [
+            116,
+            160
+          ]
+        }
       }
     },
     "note": "入通院慰謝料のみの目安です。休業損害・後遺障害・治療費などは含みません。"
   },
-
   "factors": {
     "long_treatment": "通院期間が長いほど、保険会社の提示と裁判基準の差が大きくなりやすいです。",
     "serious_injury": "骨折や重いケガは、賠償額が大きくなりやすい傾向があります。",
@@ -170,47 +671,62 @@
     "possible_after_effects": "痛みやしびれが残る場合、後遺障害の認定で賠償額が大きく変わります。",
     "property_only": "物損のみの事故は、弁護士に依頼すると費用が上回ることもあります。"
   },
-
   "warnings": [
     {
       "id": "signed_settlement",
-      "if": { "insurer_offer": "signed" },
+      "if": {
+        "insurer_offer": "signed"
+      },
       "level": "high",
       "text": "示談書にサイン済みの場合、原則としてやり直しは困難です。早めに専門家に確認してください。"
     },
     {
       "id": "deadline_near",
-      "if": { "accident_when": "3to5y" },
+      "if": {
+        "accident_when": "3to5y"
+      },
       "level": "high",
       "text": "請求には期限（時効）があります。物損は事故から3年、人身損害は5年が目安です。お急ぎください。"
     },
     {
       "id": "deadline_passed",
-      "if": { "accident_when": "gt5y" },
+      "if": {
+        "accident_when": "gt5y"
+      },
       "level": "high",
       "text": "時効が過ぎている可能性があります。例外もあるため、専門家に確認してください。"
     },
     {
       "id": "dont_sign_yet",
-      "if": { "insurer_offer": "offered" },
+      "if": {
+        "insurer_offer": "offered"
+      },
       "level": "medium",
       "text": "提示額に納得できない場合、まだ示談書にサインしないでください。"
     },
     {
       "id": "keep_treating",
-      "if": { "treatment_status": "ongoing" },
+      "if": {
+        "treatment_status": "ongoing"
+      },
       "level": "info",
       "text": "治療中は、医師の判断に従って通院を続けることが大切です。"
     }
   ],
-
   "result": {
     "headline": {
       "high": "弁護士への相談：おすすめ度【高】",
       "medium": "弁護士への相談：おすすめ度【中】",
       "low": "弁護士への相談：おすすめ度【低】"
     },
+    "value_label": "ケースの初期評価",
+    "value": {
+      "high": "賠償額が大きくなる可能性があるケースです",
+      "medium": "条件によって金額が変わるケースです",
+      "low": "金額は比較的小さいと考えられるケースです"
+    },
     "range_label": "裁判基準の目安（入通院慰謝料）",
+    "cost_note": "弁護士費用特約があれば、多くの場合、自己負担なしで相談・依頼できます。特約がない場合も、初回相談無料の事務所や法テラス（収入要件あり）を利用できます。",
     "next_step": {
       "high": "専門家に早めに相談することをおすすめします。",
       "medium": "保険会社の提示が出たら、一度専門家に確認すると安心です。",

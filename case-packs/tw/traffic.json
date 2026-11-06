@@ -1,0 +1,577 @@
+{
+  "meta": {
+    "market": "tw",
+    "case_type": "traffic",
+    "language": "zh-Hant",
+    "title": "車禍 免費案件初步診斷",
+    "status": "draft",
+    "approved_by": "",
+    "reviewed_on": "",
+    "notes_for_reviewers": "DRAFT by Claude for Taiwan lawyer review. Deadlines (民法197條、刑事告訴期間), wording and cost info must be confirmed. No amount table yet — Taiwan lawyers to supply one."
+  },
+  "questions": [
+    {
+      "id": "injured",
+      "text": "您在車禍中受傷了嗎？",
+      "type": "single",
+      "options": [
+        {
+          "value": "yes",
+          "label": "是"
+        },
+        {
+          "value": "no",
+          "label": "否（只有財物損失）"
+        }
+      ]
+    },
+    {
+      "id": "injury_type",
+      "text": "主要的傷勢是？",
+      "type": "single",
+      "show_if": {
+        "injured": "yes"
+      },
+      "options": [
+        {
+          "value": "whiplash",
+          "label": "頸部扭傷・挫傷・扭傷"
+        },
+        {
+          "value": "fracture",
+          "label": "骨折"
+        },
+        {
+          "value": "serious",
+          "label": "頭部・內臟等嚴重傷害"
+        },
+        {
+          "value": "unknown",
+          "label": "不清楚"
+        }
+      ]
+    },
+    {
+      "id": "treatment_months",
+      "text": "到目前為止的就醫（門診・住院）期間？",
+      "type": "single",
+      "show_if": {
+        "injured": "yes"
+      },
+      "options": [
+        {
+          "value": "0",
+          "label": "尚未就醫"
+        },
+        {
+          "value": "1",
+          "label": "未滿1個月"
+        },
+        {
+          "value": "3",
+          "label": "1～3個月"
+        },
+        {
+          "value": "6",
+          "label": "3～6個月"
+        },
+        {
+          "value": "7",
+          "label": "6個月以上"
+        }
+      ]
+    },
+    {
+      "id": "treatment_status",
+      "text": "目前治療狀況？",
+      "type": "single",
+      "show_if": {
+        "injured": "yes"
+      },
+      "options": [
+        {
+          "value": "ongoing",
+          "label": "治療中"
+        },
+        {
+          "value": "finished",
+          "label": "已經治療結束"
+        },
+        {
+          "value": "fixed",
+          "label": "醫師表示傷勢已固定、可能有後遺症"
+        }
+      ]
+    },
+    {
+      "id": "fault",
+      "text": "事故的過失比例（就您所知）？",
+      "type": "single",
+      "options": [
+        {
+          "value": "other_100",
+          "label": "對方100%過失（例如被追撞）"
+        },
+        {
+          "value": "other_most",
+          "label": "主要是對方過失"
+        },
+        {
+          "value": "shared",
+          "label": "雙方差不多"
+        },
+        {
+          "value": "me_most",
+          "label": "主要是自己過失"
+        },
+        {
+          "value": "unknown",
+          "label": "不清楚"
+        }
+      ]
+    },
+    {
+      "id": "insurer_offer",
+      "text": "對方或保險公司是否已提出和解金額？",
+      "type": "single",
+      "options": [
+        {
+          "value": "none",
+          "label": "還沒有"
+        },
+        {
+          "value": "offered",
+          "label": "已提出，但尚未同意"
+        },
+        {
+          "value": "signed",
+          "label": "已經簽署和解書"
+        }
+      ]
+    },
+    {
+      "id": "lawyer_rider",
+      "text": "您的保險是否有法律費用相關的附加條款？",
+      "type": "single",
+      "help": "部分汽車保險附有法律費用相關附加條款，請確認保單。",
+      "options": [
+        {
+          "value": "yes",
+          "label": "有"
+        },
+        {
+          "value": "no",
+          "label": "沒有"
+        },
+        {
+          "value": "unknown",
+          "label": "不清楚"
+        }
+      ]
+    },
+    {
+      "id": "accident_when",
+      "text": "車禍是什麼時候發生的？",
+      "type": "single",
+      "options": [
+        {
+          "value": "lt6m",
+          "label": "6個月內"
+        },
+        {
+          "value": "6mto2y",
+          "label": "6個月～2年"
+        },
+        {
+          "value": "2to10y",
+          "label": "2年以上"
+        }
+      ]
+    },
+    {
+      "id": "region",
+      "text": "您居住的縣市",
+      "type": "single",
+      "options": [
+        {
+          "value": "臺北市",
+          "label": "臺北市"
+        },
+        {
+          "value": "新北市",
+          "label": "新北市"
+        },
+        {
+          "value": "桃園市",
+          "label": "桃園市"
+        },
+        {
+          "value": "臺中市",
+          "label": "臺中市"
+        },
+        {
+          "value": "臺南市",
+          "label": "臺南市"
+        },
+        {
+          "value": "高雄市",
+          "label": "高雄市"
+        },
+        {
+          "value": "基隆市",
+          "label": "基隆市"
+        },
+        {
+          "value": "新竹市",
+          "label": "新竹市"
+        },
+        {
+          "value": "嘉義市",
+          "label": "嘉義市"
+        },
+        {
+          "value": "新竹縣",
+          "label": "新竹縣"
+        },
+        {
+          "value": "苗栗縣",
+          "label": "苗栗縣"
+        },
+        {
+          "value": "彰化縣",
+          "label": "彰化縣"
+        },
+        {
+          "value": "南投縣",
+          "label": "南投縣"
+        },
+        {
+          "value": "雲林縣",
+          "label": "雲林縣"
+        },
+        {
+          "value": "嘉義縣",
+          "label": "嘉義縣"
+        },
+        {
+          "value": "屏東縣",
+          "label": "屏東縣"
+        },
+        {
+          "value": "宜蘭縣",
+          "label": "宜蘭縣"
+        },
+        {
+          "value": "花蓮縣",
+          "label": "花蓮縣"
+        },
+        {
+          "value": "臺東縣",
+          "label": "臺東縣"
+        },
+        {
+          "value": "澎湖縣",
+          "label": "澎湖縣"
+        },
+        {
+          "value": "金門縣",
+          "label": "金門縣"
+        },
+        {
+          "value": "連江縣",
+          "label": "連江縣"
+        }
+      ]
+    },
+    {
+      "id": "story",
+      "text": "請簡單描述事故經過（請勿填寫姓名、地址等個人資料）",
+      "type": "free_text",
+      "max_chars": 300,
+      "optional": true
+    }
+  ],
+  "jeff": {
+    "recommendation": {
+      "question": "Should this person consult a lawyer about this traffic accident?",
+      "options": [
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "urgency": {
+      "question": "How urgent is this case?",
+      "options": [
+        "urgent",
+        "normal"
+      ]
+    },
+    "factors": {
+      "question": "Which of these factors apply to this case? (choose all that apply)",
+      "multi": true,
+      "options": [
+        "long_treatment",
+        "serious_injury",
+        "other_party_at_fault",
+        "fault_disputed",
+        "offer_received",
+        "lawyer_rider",
+        "possible_after_effects",
+        "property_only"
+      ]
+    },
+    "review_threshold": 0.6
+  },
+  "rules": {
+    "_comment": "Lawyer-written scoring used when Jeff is not running, and as the comparison baseline. DRAFT.",
+    "score": [
+      {
+        "if": {
+          "injured": "yes"
+        },
+        "add": 2
+      },
+      {
+        "if": {
+          "injury_type": "fracture"
+        },
+        "add": 2
+      },
+      {
+        "if": {
+          "injury_type": "serious"
+        },
+        "add": 4
+      },
+      {
+        "if": {
+          "treatment_months": "3"
+        },
+        "add": 1
+      },
+      {
+        "if": {
+          "treatment_months": [
+            "6",
+            "7"
+          ]
+        },
+        "add": 2
+      },
+      {
+        "if": {
+          "treatment_status": "fixed"
+        },
+        "add": 2
+      },
+      {
+        "if": {
+          "fault": [
+            "other_100",
+            "other_most"
+          ]
+        },
+        "add": 1
+      },
+      {
+        "if": {
+          "fault": "shared"
+        },
+        "add": 1
+      },
+      {
+        "if": {
+          "insurer_offer": "offered"
+        },
+        "add": 2
+      },
+      {
+        "if": {
+          "lawyer_rider": "yes"
+        },
+        "add": 2
+      },
+      {
+        "if": {
+          "fault": "me_most"
+        },
+        "add": -1
+      },
+      {
+        "if": {
+          "injured": "no"
+        },
+        "add": -1
+      }
+    ],
+    "recommendation_levels": {
+      "high": 6,
+      "medium": 3
+    },
+    "value_levels": {
+      "high": 7,
+      "medium": 3
+    },
+    "factors": [
+      {
+        "factor": "serious_injury",
+        "if": {
+          "injury_type": [
+            "fracture",
+            "serious"
+          ]
+        }
+      },
+      {
+        "factor": "possible_after_effects",
+        "if": {
+          "treatment_status": "fixed"
+        }
+      },
+      {
+        "factor": "offer_received",
+        "if": {
+          "insurer_offer": "offered"
+        }
+      },
+      {
+        "factor": "long_treatment",
+        "if": {
+          "treatment_months": [
+            "6",
+            "7"
+          ]
+        }
+      },
+      {
+        "factor": "lawyer_rider",
+        "if": {
+          "lawyer_rider": "yes"
+        }
+      },
+      {
+        "factor": "fault_disputed",
+        "if": {
+          "fault": [
+            "shared",
+            "unknown"
+          ]
+        }
+      },
+      {
+        "factor": "other_party_at_fault",
+        "if": {
+          "fault": [
+            "other_100",
+            "other_most"
+          ]
+        }
+      },
+      {
+        "factor": "property_only",
+        "if": {
+          "injured": "no"
+        }
+      }
+    ],
+    "urgency": [
+      {
+        "if": {
+          "insurer_offer": "signed"
+        }
+      },
+      {
+        "if": {
+          "accident_when": [
+            "6mto2y",
+            "2to10y"
+          ]
+        }
+      },
+      {
+        "if": {
+          "insurer_offer": "offered"
+        }
+      }
+    ]
+  },
+  "calculator": null,
+  "factors": {
+    "long_treatment": "就醫期間越長，賠償金額通常越高，也越值得仔細評估。",
+    "serious_injury": "骨折或嚴重傷害，賠償金額通常較大。",
+    "other_party_at_fault": "對方過失較大時，您可請求的金額較不易被減少。",
+    "fault_disputed": "過失比例有爭議時，經專業人士確認後結果可能不同。",
+    "offer_received": "對方或保險公司提出的金額，未必是您可請求的全部。",
+    "lawyer_rider": "若有法律費用相關條款，諮詢或委任律師的負擔可能較小。",
+    "possible_after_effects": "若有後遺症，可能影響失能等級與賠償金額。",
+    "property_only": "只有財物損失時，委任律師的費用有時會高於可請求金額。"
+  },
+  "warnings": [
+    {
+      "id": "signed_settlement",
+      "if": {
+        "insurer_offer": "signed"
+      },
+      "level": "high",
+      "text": "已簽署和解書的情況，原則上很難再重新請求，請儘快請專業人士確認。"
+    },
+    {
+      "id": "criminal_complaint",
+      "if": {
+        "injured": "yes"
+      },
+      "level": "medium",
+      "text": "受傷時可能涉及過失傷害告訴，告訴期間通常為知悉加害人後6個月內，請留意。"
+    },
+    {
+      "id": "deadline_near",
+      "if": {
+        "accident_when": [
+          "6mto2y",
+          "2to10y"
+        ]
+      },
+      "level": "high",
+      "text": "損害賠償請求權有時效，一般為知悉損害及賠償義務人起2年，請儘快處理。"
+    },
+    {
+      "id": "dont_sign_yet",
+      "if": {
+        "insurer_offer": "offered"
+      },
+      "level": "medium",
+      "text": "若對提出的金額有疑問，請先不要簽署和解書。"
+    },
+    {
+      "id": "keep_treating",
+      "if": {
+        "treatment_status": "ongoing"
+      },
+      "level": "info",
+      "text": "治療期間請依醫師指示持續就醫，並保存診斷證明與收據。"
+    }
+  ],
+  "result": {
+    "headline": {
+      "high": "建議諮詢律師：程度【高】",
+      "medium": "建議諮詢律師：程度【中】",
+      "low": "建議諮詢律師：程度【低】"
+    },
+    "value_label": "案件初步評估",
+    "value": {
+      "high": "這可能是賠償金額較大的案件",
+      "medium": "金額會依具體情況而有差異",
+      "low": "金額可能相對較小"
+    },
+    "range_label": "參考金額",
+    "next_step": {
+      "high": "建議儘早諮詢專業律師。",
+      "medium": "在簽署任何和解書之前，建議先請專業人士確認。",
+      "low": "請先保存就醫紀錄、收據與對話紀錄。也可以利用鄉鎮市公所調解委員會進行調解。"
+    },
+    "cost_note": "經濟上有困難時，可向法律扶助基金會申請免費法律諮詢或扶助（有資格條件）。許多律師事務所也提供初次諮詢。",
+    "supervision_label": "律師監修",
+    "disclaimer": "本診斷僅提供一般性資訊，不構成法律意見。實際金額與結果會因個別情況而有所不同。"
+  }
+}

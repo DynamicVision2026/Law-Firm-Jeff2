@@ -49,11 +49,23 @@ web/               Free check page and result screen (next step)
 ## Status
 
 - [x] Case-pack format + guide for lawyers
-- [x] Japan / traffic accident pack — **DRAFT, needs lawyer review**
-- [ ] Engine (Jeff + calculator + templates)
-- [ ] Web form and result screen (Japanese)
-- [ ] Anonymized log with consent
-- [ ] Divorce and labor packs; TW / HK / CN packs
+- [x] Traffic-accident packs: Japan (ja), Taiwan (zh-Hant), mainland China (zh-Hans) — **all DRAFT, need lawyer review**
+- [x] Engine: judge (lawyer rules now, Jeff when `JEFF_URL` is set) + calculator + templates
+- [x] Web form and result screen with language switch (日本語 / 繁體中文 / 简体中文)
+- [x] Anonymized log record with consent (console now, `LOG_URL` later)
+- [ ] Jeff service (local model) and accuracy comparison vs. lawyer rules
+- [ ] Amount tables for Taiwan and mainland (local lawyers)
+- [ ] Divorce and labor packs; Hong Kong pack
+
+## Run it locally
+
+```
+python3 -m http.server 8000      # from the repo root
+open http://localhost:8000/web/          # Japanese
+open http://localhost:8000/web/?m=tw     # Taiwan
+open http://localhost:8000/web/?m=cn     # mainland China
+node tests/engine.test.mjs       # engine tests
+```
 
 ## Ground rules (all markets)
 

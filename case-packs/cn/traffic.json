@@ -1,0 +1,613 @@
+{
+  "meta": {
+    "market": "cn",
+    "case_type": "traffic",
+    "language": "zh-Hans",
+    "title": "交通事故 免费案件初步诊断",
+    "status": "draft",
+    "approved_by": "",
+    "reviewed_on": "",
+    "notes_for_reviewers": "DRAFT by Claude for mainland lawyer review. Deadlines (民法典第188条), wording and cost info must be confirmed. No amount table yet — compensation standards vary by province; mainland lawyers to supply one."
+  },
+  "questions": [
+    {
+      "id": "injured",
+      "text": "您在事故中受伤了吗？",
+      "type": "single",
+      "options": [
+        {
+          "value": "yes",
+          "label": "是"
+        },
+        {
+          "value": "no",
+          "label": "否（只有财产损失）"
+        }
+      ]
+    },
+    {
+      "id": "injury_type",
+      "text": "主要伤情是？",
+      "type": "single",
+      "show_if": {
+        "injured": "yes"
+      },
+      "options": [
+        {
+          "value": "whiplash",
+          "label": "颈部扭伤・挫伤・扭伤"
+        },
+        {
+          "value": "fracture",
+          "label": "骨折"
+        },
+        {
+          "value": "serious",
+          "label": "头部・内脏等严重伤害"
+        },
+        {
+          "value": "unknown",
+          "label": "不清楚"
+        }
+      ]
+    },
+    {
+      "id": "treatment_months",
+      "text": "到目前为止的治疗（门诊・住院）时间？",
+      "type": "single",
+      "show_if": {
+        "injured": "yes"
+      },
+      "options": [
+        {
+          "value": "0",
+          "label": "还未就医"
+        },
+        {
+          "value": "1",
+          "label": "不到1个月"
+        },
+        {
+          "value": "3",
+          "label": "1～3个月"
+        },
+        {
+          "value": "6",
+          "label": "3～6个月"
+        },
+        {
+          "value": "7",
+          "label": "6个月以上"
+        }
+      ]
+    },
+    {
+      "id": "treatment_status",
+      "text": "目前治疗情况？",
+      "type": "single",
+      "show_if": {
+        "injured": "yes"
+      },
+      "options": [
+        {
+          "value": "ongoing",
+          "label": "治疗中"
+        },
+        {
+          "value": "finished",
+          "label": "已治疗结束"
+        },
+        {
+          "value": "fixed",
+          "label": "医生表示可能留有后遗症（可做伤残鉴定）"
+        }
+      ]
+    },
+    {
+      "id": "fault",
+      "text": "事故责任划分（就您所知）？",
+      "type": "single",
+      "options": [
+        {
+          "value": "other_100",
+          "label": "对方全责（例如追尾）"
+        },
+        {
+          "value": "other_most",
+          "label": "对方主要责任"
+        },
+        {
+          "value": "shared",
+          "label": "同等责任"
+        },
+        {
+          "value": "me_most",
+          "label": "自己主要责任"
+        },
+        {
+          "value": "unknown",
+          "label": "不清楚"
+        }
+      ]
+    },
+    {
+      "id": "insurer_offer",
+      "text": "对方或保险公司是否已提出赔偿金额？",
+      "type": "single",
+      "options": [
+        {
+          "value": "none",
+          "label": "还没有"
+        },
+        {
+          "value": "offered",
+          "label": "已提出，但还未同意"
+        },
+        {
+          "value": "signed",
+          "label": "已经签署调解或和解协议"
+        }
+      ]
+    },
+    {
+      "id": "lawyer_rider",
+      "text": "您的保险是否有法律费用相关条款？",
+      "type": "single",
+      "help": "部分商业车险附有法律费用相关条款，请查看保单。",
+      "options": [
+        {
+          "value": "yes",
+          "label": "有"
+        },
+        {
+          "value": "no",
+          "label": "没有"
+        },
+        {
+          "value": "unknown",
+          "label": "不清楚"
+        }
+      ]
+    },
+    {
+      "id": "accident_when",
+      "text": "事故是什么时候发生的？",
+      "type": "single",
+      "options": [
+        {
+          "value": "lt1y",
+          "label": "1年以内"
+        },
+        {
+          "value": "1to3y",
+          "label": "1～3年前"
+        },
+        {
+          "value": "gt3y",
+          "label": "3年以上"
+        }
+      ]
+    },
+    {
+      "id": "region",
+      "text": "您所在的省份",
+      "type": "single",
+      "options": [
+        {
+          "value": "北京市",
+          "label": "北京市"
+        },
+        {
+          "value": "天津市",
+          "label": "天津市"
+        },
+        {
+          "value": "上海市",
+          "label": "上海市"
+        },
+        {
+          "value": "重庆市",
+          "label": "重庆市"
+        },
+        {
+          "value": "河北省",
+          "label": "河北省"
+        },
+        {
+          "value": "山西省",
+          "label": "山西省"
+        },
+        {
+          "value": "辽宁省",
+          "label": "辽宁省"
+        },
+        {
+          "value": "吉林省",
+          "label": "吉林省"
+        },
+        {
+          "value": "黑龙江省",
+          "label": "黑龙江省"
+        },
+        {
+          "value": "江苏省",
+          "label": "江苏省"
+        },
+        {
+          "value": "浙江省",
+          "label": "浙江省"
+        },
+        {
+          "value": "安徽省",
+          "label": "安徽省"
+        },
+        {
+          "value": "福建省",
+          "label": "福建省"
+        },
+        {
+          "value": "江西省",
+          "label": "江西省"
+        },
+        {
+          "value": "山东省",
+          "label": "山东省"
+        },
+        {
+          "value": "河南省",
+          "label": "河南省"
+        },
+        {
+          "value": "湖北省",
+          "label": "湖北省"
+        },
+        {
+          "value": "湖南省",
+          "label": "湖南省"
+        },
+        {
+          "value": "广东省",
+          "label": "广东省"
+        },
+        {
+          "value": "海南省",
+          "label": "海南省"
+        },
+        {
+          "value": "四川省",
+          "label": "四川省"
+        },
+        {
+          "value": "贵州省",
+          "label": "贵州省"
+        },
+        {
+          "value": "云南省",
+          "label": "云南省"
+        },
+        {
+          "value": "陕西省",
+          "label": "陕西省"
+        },
+        {
+          "value": "甘肃省",
+          "label": "甘肃省"
+        },
+        {
+          "value": "青海省",
+          "label": "青海省"
+        },
+        {
+          "value": "内蒙古自治区",
+          "label": "内蒙古自治区"
+        },
+        {
+          "value": "广西壮族自治区",
+          "label": "广西壮族自治区"
+        },
+        {
+          "value": "西藏自治区",
+          "label": "西藏自治区"
+        },
+        {
+          "value": "宁夏回族自治区",
+          "label": "宁夏回族自治区"
+        },
+        {
+          "value": "新疆维吾尔自治区",
+          "label": "新疆维吾尔自治区"
+        }
+      ]
+    },
+    {
+      "id": "story",
+      "text": "请简单描述事故经过（请勿填写姓名、地址等个人信息）",
+      "type": "free_text",
+      "max_chars": 300,
+      "optional": true
+    }
+  ],
+  "jeff": {
+    "recommendation": {
+      "question": "Should this person consult a lawyer about this traffic accident?",
+      "options": [
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "urgency": {
+      "question": "How urgent is this case?",
+      "options": [
+        "urgent",
+        "normal"
+      ]
+    },
+    "factors": {
+      "question": "Which of these factors apply to this case? (choose all that apply)",
+      "multi": true,
+      "options": [
+        "long_treatment",
+        "serious_injury",
+        "other_party_at_fault",
+        "fault_disputed",
+        "offer_received",
+        "lawyer_rider",
+        "possible_after_effects",
+        "property_only"
+      ]
+    },
+    "review_threshold": 0.6
+  },
+  "rules": {
+    "_comment": "Lawyer-written scoring used when Jeff is not running, and as the comparison baseline. DRAFT.",
+    "score": [
+      {
+        "if": {
+          "injured": "yes"
+        },
+        "add": 2
+      },
+      {
+        "if": {
+          "injury_type": "fracture"
+        },
+        "add": 2
+      },
+      {
+        "if": {
+          "injury_type": "serious"
+        },
+        "add": 4
+      },
+      {
+        "if": {
+          "treatment_months": "3"
+        },
+        "add": 1
+      },
+      {
+        "if": {
+          "treatment_months": [
+            "6",
+            "7"
+          ]
+        },
+        "add": 2
+      },
+      {
+        "if": {
+          "treatment_status": "fixed"
+        },
+        "add": 2
+      },
+      {
+        "if": {
+          "fault": [
+            "other_100",
+            "other_most"
+          ]
+        },
+        "add": 1
+      },
+      {
+        "if": {
+          "fault": "shared"
+        },
+        "add": 1
+      },
+      {
+        "if": {
+          "insurer_offer": "offered"
+        },
+        "add": 2
+      },
+      {
+        "if": {
+          "lawyer_rider": "yes"
+        },
+        "add": 2
+      },
+      {
+        "if": {
+          "fault": "me_most"
+        },
+        "add": -1
+      },
+      {
+        "if": {
+          "injured": "no"
+        },
+        "add": -1
+      }
+    ],
+    "recommendation_levels": {
+      "high": 6,
+      "medium": 3
+    },
+    "value_levels": {
+      "high": 7,
+      "medium": 3
+    },
+    "factors": [
+      {
+        "factor": "serious_injury",
+        "if": {
+          "injury_type": [
+            "fracture",
+            "serious"
+          ]
+        }
+      },
+      {
+        "factor": "possible_after_effects",
+        "if": {
+          "treatment_status": "fixed"
+        }
+      },
+      {
+        "factor": "offer_received",
+        "if": {
+          "insurer_offer": "offered"
+        }
+      },
+      {
+        "factor": "long_treatment",
+        "if": {
+          "treatment_months": [
+            "6",
+            "7"
+          ]
+        }
+      },
+      {
+        "factor": "lawyer_rider",
+        "if": {
+          "lawyer_rider": "yes"
+        }
+      },
+      {
+        "factor": "fault_disputed",
+        "if": {
+          "fault": [
+            "shared",
+            "unknown"
+          ]
+        }
+      },
+      {
+        "factor": "other_party_at_fault",
+        "if": {
+          "fault": [
+            "other_100",
+            "other_most"
+          ]
+        }
+      },
+      {
+        "factor": "property_only",
+        "if": {
+          "injured": "no"
+        }
+      }
+    ],
+    "urgency": [
+      {
+        "if": {
+          "insurer_offer": "signed"
+        }
+      },
+      {
+        "if": {
+          "accident_when": [
+            "1to3y",
+            "gt3y"
+          ]
+        }
+      },
+      {
+        "if": {
+          "insurer_offer": "offered"
+        }
+      }
+    ]
+  },
+  "calculator": null,
+  "factors": {
+    "long_treatment": "治疗时间越长，赔偿项目通常越多，越值得仔细评估。",
+    "serious_injury": "骨折或严重伤害，赔偿金额通常较大。",
+    "other_party_at_fault": "对方责任较大时，您可获得的赔偿比例更高。",
+    "fault_disputed": "责任划分有争议时，经专业人士确认后结果可能不同。",
+    "offer_received": "对方或保险公司提出的金额，未必包含您可主张的全部项目。",
+    "lawyer_rider": "如有法律费用相关条款，咨询或委托律师的负担可能较小。",
+    "possible_after_effects": "如构成伤残，伤残赔偿金可能大幅增加，需做伤残鉴定。",
+    "property_only": "只有财产损失时，委托律师的费用有时会高于可获赔偿。"
+  },
+  "warnings": [
+    {
+      "id": "signed_settlement",
+      "if": {
+        "insurer_offer": "signed"
+      },
+      "level": "high",
+      "text": "已签署调解或和解协议的，原则上很难再重新主张，请尽快请专业人士确认。"
+    },
+    {
+      "id": "deadline_near",
+      "if": {
+        "accident_when": [
+          "1to3y",
+          "gt3y"
+        ]
+      },
+      "level": "high",
+      "text": "诉讼时效一般为3年，自知道权利受损及义务人之日起计算，请尽快处理。"
+    },
+    {
+      "id": "keep_report",
+      "if": {
+        "injured": "yes"
+      },
+      "level": "medium",
+      "text": "请保存好《交通事故认定书》、病历、诊断证明和费用票据。"
+    },
+    {
+      "id": "dont_sign_yet",
+      "if": {
+        "insurer_offer": "offered"
+      },
+      "level": "medium",
+      "text": "如对赔偿金额有疑问，请先不要签署协议。"
+    },
+    {
+      "id": "keep_treating",
+      "if": {
+        "treatment_status": "ongoing"
+      },
+      "level": "info",
+      "text": "治疗期间请遵医嘱持续就医。"
+    }
+  ],
+  "result": {
+    "headline": {
+      "high": "建议咨询律师：程度【高】",
+      "medium": "建议咨询律师：程度【中】",
+      "low": "建议咨询律师：程度【低】"
+    },
+    "value_label": "案件初步评估",
+    "value": {
+      "high": "这可能是赔偿金额较大的案件",
+      "medium": "金额会因具体情况而不同",
+      "low": "金额可能相对较小"
+    },
+    "range_label": "参考金额",
+    "next_step": {
+      "high": "建议尽早咨询专业律师。",
+      "medium": "在签署任何协议之前，建议先请专业人士确认。",
+      "low": "请先保存相关证据和票据。也可以通过交警部门或人民调解委员会进行调解。"
+    },
+    "cost_note": "经济困难的，可向当地法律援助中心申请法律援助（有条件限制），也可拨打12348法律服务热线咨询。",
+    "supervision_label": "律师审核",
+    "disclaimer": "本诊断仅提供一般性信息，不构成法律意见。实际金额与结果会因个案情况而不同。"
+  }
+}

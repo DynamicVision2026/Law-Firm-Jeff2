@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>無料ケース診断 · Jeff 2</title>
+<style>
+  :root {
+    --bg: #f7f5f0; --card: #ffffff; --ink: #1d1d1f; --muted: #6b6b70;
+    --line: #e3e0d8; --accent: #1f4e79; --accent-ink: #ffffff;
+    --high: #b3261e; --mid: #b26a00; --low: #2e7d32; --info: #3a5a80;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.6 "Hiragino Sans", "Noto Sans JP", "Noto Sans TC", "Noto Sans SC", system-ui, sans-serif; }
+  main { max-width: 640px; margin: 0 auto; padding: 24px 16px 64px; }
+  header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  h1 { font-size: 22px; margin: 0; }
+  .badge { font-size: 12px; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: 2px 10px; }
+  .langs { display: flex; gap: 6px; }
+  .langs button { border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: 6px 10px; cursor: pointer; font: inherit; font-size: 13px; }
+  .langs button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .intro { color: var(--muted); margin: 12px 0 20px; }
+  .q { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+  .q label.t { display: block; font-weight: 600; margin-bottom: 10px; }
+  .help { color: var(--muted); font-size: 13px; margin: -6px 0 10px; }
+  .opts { display: flex; flex-wrap: wrap; gap: 8px; }
+  .opts input { position: absolute; opacity: 0; }
+  .opts span { display: inline-block; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; cursor: pointer; }
+  .opts input:checked + span { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .opts input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+  select, textarea { width: 100%; font: inherit; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+  textarea { min-height: 90px; }
+  .consent { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; color: var(--muted); margin: 16px 0; }
+  .go { width: 100%; padding: 14px; font: inherit; font-weight: 700; border: 0; border-radius: 10px; background: var(--accent); color: var(--accent-ink); cursor: pointer; }
+  .go:disabled { opacity: .45; cursor: not-allowed; }
+  #result { margin-top: 24px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
+  .headline { font-size: 20px; font-weight: 800; margin: 0 0 8px; }
+  .lvl-high { color: var(--high); } .lvl-medium { color: var(--mid); } .lvl-low { color: var(--low); }
+  .value { font-weight: 600; }
+  .range { font-size: 24px; font-weight: 800; margin: 8px 0 2px; }
+  .small { font-size: 13px; color: var(--muted); }
+  h3 { font-size: 15px; margin: 18px 0 6px; }
+  ul { margin: 0; padding-left: 20px; }
+  .warn { border-left: 4px solid var(--info); background: #f2f5f9; padding: 8px 12px; border-radius: 6px; margin: 6px 0; }
+  .warn.high { border-color: var(--high); background: #fbefee; }
+  .warn.medium { border-color: var(--mid); background: #fbf4e9; }
+  .foot { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
+  .draft { background: #fff4d6; border: 1px solid #e8c766; border-radius: 8px; padding: 8px 12px; font-size: 13px; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1 id="title"></h1>
+    <div class="langs" id="langs"></div>
+  </header>
+  <p class="intro" id="intro"></p>
+  <div class="draft" id="draft" hidden></div>
+  <form id="form"></form>
+  <section id="result" aria-live="polite"></section>
+</main>
+
+<script type="module">
+import { visibleQuestions, runCheck, logRecord } from "../engine/engine.js";
+
+// ---- settings (leave null for the MVP) ----
+const CONFIG = {
+  JEFF_URL: null, // e.g. "http://localhost:8000/classify" when the Jeff service runs
+  LOG_URL: null,  // endpoint that stores anonymized records; null = browser console only
+};
+
+const MARKETS = {
+  jp: { lang: "ja",      name: "日本語" },
+  tw: { lang: "zh-Hant", name: "繁體中文（台灣）" },
+  cn: { lang: "zh-Hans", name: "简体中文（中国大陆）" },
+};
+
+const UI = {
+  ja: { intro: "8つほどの質問に答えるだけで、弁護士監修の初期診断がすぐにわかります。お名前や連絡先は不要です。",
+        consent: "回答内容を匿名で保存し、診断の改善に使うことに同意します。",
+        go: "無料で診断する", reasons: "主なポイント", warnings: "注意", next: "次のステップ", cost: "費用について",
+        draft: "試作版：内容は弁護士の確認前です。", choose: "選択してください", optional: "（任意）" },
+  "zh-Hant": { intro: "只要回答約8個問題，就能立即獲得律師監修的初步診斷。不需要姓名或聯絡方式。",
+        consent: "我同意以匿名方式保存回答內容，用於改善診斷。",
+        go: "免費診斷", reasons: "主要重點", warnings: "注意事項", next: "下一步", cost: "關於費用",
+        draft: "試作版：內容尚未經律師確認。", choose: "請選擇", optional: "（選填）" },
+  "zh-Hans": { intro: "只需回答约8个问题，即可立即获得律师审核的初步诊断。无需填写姓名或联系方式。",
+        consent: "我同意以匿名方式保存回答内容，用于改进诊断。",
+        go: "免费诊断", reasons: "主要要点", warnings: "注意事项", next: "下一步", cost: "关于费用",
+        draft: "试用版：内容尚未经律师确认。", choose: "请选择", optional: "（选填）" },
+};
+
+let pack, market, answers = {};
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+
+async function load(code) {
+  market = code;
+  pack = await (await fetch(`../case-packs/${code}/traffic.json`)).json();
+  answers = {};
+  const ui = UI[MARKETS[code].lang];
+  document.documentElement.lang = MARKETS[code].lang;
+  document.title = pack.meta.title;
+  $("title").textContent = pack.meta.title;
+  $("intro").textContent = ui.intro;
+  $("draft").hidden = pack.meta.status === "approved";
+  $("draft").textContent = ui.draft;
+  $("result").innerHTML = "";
+  $("langs").querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.m === code));
+  render();
+}
+
+function render() {
+  const ui = UI[MARKETS[market].lang];
+  const qs = visibleQuestions(pack, answers);
+  // drop answers to questions that are no longer shown
+  for (const id of Object.keys(answers)) if (!qs.some((q) => q.id === id)) delete answers[id];
+
+  let html = "";
+  for (const q of qs) {
+    html += `<div class="q"><label class="t" for="q-${q.id}">${esc(q.text)}${q.optional ? " " + ui.optional : ""}</label>`;
+    if (q.help) html += `<p class="help">${esc(q.help)}</p>`;
+    if (q.type === "free_text") {
+      html += `<textarea id="q-${q.id}" data-id="${q.id}" maxlength="${q.max_chars || 300}">${esc(answers[q.id] || "")}</textarea>`;
+    } else if (q.options.length > 8) {
+      html += `<select id="q-${q.id}" data-id="${q.id}"><option value="">${ui.choose}</option>` +
+        q.options.map((o) => `<option value="${esc(o.value)}"${answers[q.id] === o.value ? " selected" : ""}>${esc(o.label)}</option>`).join("") + `</select>`;
+    } else {
+      html += `<div class="opts" role="radiogroup">` + q.options.map((o) =>
+        `<label><input type="radio" name="${q.id}" data-id="${q.id}" value="${esc(o.value)}"${answers[q.id] === o.value ? " checked" : ""}><span>${esc(o.label)}</span></label>`).join("") + `</div>`;
+    }
+    html += `</div>`;
+  }
+  html += `<label class="consent"><input type="checkbox" id="consent"> <span>${ui.consent}</span></label>`;
+  html += `<button type="submit" class="go" id="go">${ui.go}</button>`;
+  $("form").innerHTML = html;
+  updateButton();
+}
+
+function complete() {
+  return visibleQuestions(pack, answers).every((q) => q.optional || answers[q.id]);
+}
+function updateButton() { $("go").disabled = !complete(); }
+
+$("form").addEventListener("change", (e) => {
+  const id = e.target.dataset.id;
+  if (!id) return;
+  const before = visibleQuestions(pack, answers).length;
+  answers[id] = e.target.value;
+  if (visibleQuestions(pack, answers).length !== before) render(); else updateButton();
+});
+$("form").addEventListener("input", (e) => {
+  if (e.target.tagName === "TEXTAREA") answers[e.target.dataset.id] = e.target.value;
+});
+
+$("form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!complete()) return;
+  const result = await runCheck(pack, answers, { jeffUrl: CONFIG.JEFF_URL });
+  showResult(result);
+  if ($("consent").checked) {
+    const rec = logRecord(pack, answers, result);
+    if (CONFIG.LOG_URL) fetch(CONFIG.LOG_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(rec) }).catch(() => {});
+    else console.log("anonymized record", rec);
+  }
+});
+
+function showResult(r) {
+  const ui = UI[MARKETS[market].lang];
+  const lvl = r.judgment.recommendation;
+  let h = `<div class="card">`;
+  h += `<p class="headline lvl-${lvl}">${esc(r.headline)}</p>`;
+  if (r.value) h += `<p class="value">${esc(r.value.label)}：${esc(r.value.text)}</p>`;
+  if (r.range) h += `<p class="small">${esc(r.rangeLabel)}（${esc(r.range.label)}）</p><p class="range">${r.range.min}〜${r.range.max}${esc(r.range.unit)}</p><p class="small">${esc(r.range.note)}</p>`;
+  if (r.reasons.length) h += `<h3>${ui.reasons}</h3><ul>${r.reasons.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`;
+  if (r.warnings.length) h += `<h3>${ui.warnings}</h3>` + r.warnings.map((w) => `<div class="warn ${w.level}">${esc(w.text)}</div>`).join("");
+  h += `<h3>${ui.next}</h3><p>${esc(r.nextStep)}</p>`;
+  if (r.cost) h += `<h3>${ui.cost}</h3><p>${esc(r.cost)}</p>`;
+  h += `<div class="foot"><span class="badge">${esc(r.supervision)}</span><span class="small">${esc(r.disclaimer)}</span></div></div>`;
+  $("result").innerHTML = h;
+  $("result").scrollIntoView({ behavior: "smooth" });
+}
+
+// language buttons
+$("langs").innerHTML = Object.entries(MARKETS).map(([m, v]) => `<button type="button" data-m="${m}">${v.name}</button>`).join("");
+$("langs").addEventListener("click", (e) => { if (e.target.dataset.m) load(e.target.dataset.m); });
+
+const start = new URLSearchParams(location.search).get("m");
+load(MARKETS[start] ? start : "jp");
+</script>
+</body>
+</html>

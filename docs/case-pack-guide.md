@@ -8,17 +8,18 @@ File location: `case-packs/<market>/<case-type>.json`
 (e.g. `case-packs/jp/traffic.json`). Use the Japan traffic pack as the
 model; copy it and replace the content.
 
-## The 7 parts of a pack
+## The parts of a pack
 
 | Part | What the lawyers write | Used by |
 |---|---|---|
 | `meta` | Market, case type, language, approving lawyer, review date | Display, audit |
 | `questions` | 8–10 key questions with fixed answer options, plus 1 short free-text box | Form |
 | `jeff` | The fixed options Jeff chooses between (recommendation level, urgency, key factors) | Jeff |
-| `calculator` | Estimate table (e.g. court-standard amounts by treatment length) | Calculator |
+| `calculator` | Estimate table (e.g. court-standard amounts by treatment length); `null` until local lawyers supply one | Calculator |
+| `rules` | Scoring points per answer, thresholds for high/medium/low, which factors and urgency apply | Judge (and baseline for Jeff) |
 | `factors` | One plain sentence per key factor, explaining why it matters | Result screen |
 | `warnings` | Red-flag rules and their warning text (deadlines, signed settlements) | Result screen |
-| `result` | Headline wording per recommendation level, next-step text, disclaimer | Result screen |
+| `result` | Headline per level, case value text, next step, cost note (legal aid, insurance riders), disclaimer | Result screen |
 
 ## Writing rules
 
