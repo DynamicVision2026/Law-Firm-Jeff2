@@ -53,3 +53,25 @@ The Terminal window shows whether the AI and Jeff are on. Close the window to st
 - "TEST MODE" in the Terminal window → the key in `.env` is missing or mistyped.
 - "Jeff failed to start" → check `JEFF_DIR` points at the Jeff folder; the site still works without Jeff.
 - Port already in use → change `PORT=8001` in `.env`.
+
+## Share with your team (internal test)
+
+Your Mac runs everything; a free Cloudflare link lets team members in Japan and China open it in a browser.
+
+1. Install the link tool once (Terminal): `brew install cloudflared`
+   (no Homebrew? install it first from https://brew.sh)
+2. In `.env`, set:
+   ```
+   SHARE=yes
+   SITE_PASSWORD=choose-a-team-password
+   ```
+3. Double-click **Start Jeff2.command**. The window shows **TEAM LINK: https://….trycloudflare.com/web/**
+   and copies it for you. Send the link and the password to the team **separately**.
+
+Good to know:
+- Works only while the window is open and the Mac is on (it keeps the Mac awake while sharing).
+- The link changes each time you restart — send the new one.
+- Everyone's tests are logged anonymously on your Mac in `data/log.jsonl`.
+- Mainland China: Cloudflare links may be slow or blocked there. If the China team can't open it,
+  they can test through a VPN for now; a mainland-hosted version comes later.
+- Turn sharing off with `SHARE=no` when the test is over.

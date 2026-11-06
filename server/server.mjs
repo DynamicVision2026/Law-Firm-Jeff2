@@ -29,6 +29,18 @@ const MODEL = process.env.LLM_MODEL || "claude-haiku-5-5";
 const JEFF_URL = process.env.JEFF_URL || "";
 const LOG_FILE = process.env.LOG_FILE || join(ROOT, "data", "log.jsonl");
 const MOCK = !KEY;
+const SITE_PASSWORD = process.env.SITE_PASSWORD || ""; // when set, every page and API call needs it
+
+// Team password (HTTP Basic auth; any user name, this password).
+import { timingSafeEqual } from "node:crypto";
+function authorized(req) {
+  if (!SITE_PASSWORD) return true;
+  const [scheme, value] = (req.headers.authorization || "").split(" ");
+  if (scheme !== "Basic" || !value) return false;
+  const pass = Buffer.from(value, "base64").toString().split(":").slice(1).join(":");
+  const a = Buffer.from(pass), b = Buffer.from(SITE_PASSWORD);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
 
 // ---------- privacy ----------
 
@@ -247,6 +259,10 @@ const ROUTES = { "/api/triage": triage, "/api/report": report, "/api/feedback": 
 
 export const server = http.createServer(async (req, res) => {
   try {
+    if (!authorized(req)) {
+      res.writeHead(401, { "WWW-Authenticate": 'Basic realm="Jeff 2 team test", charset="UTF-8"', "Content-Type": "text/plain; charset=utf-8" });
+      return res.end("Team password required / チームパスワードが必要です / 需要团队密码");
+    }
     const url = new URL(req.url, "http://x");
     if (req.method === "POST" && ROUTES[url.pathname]) {
       let body = "";
@@ -275,5 +291,6 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     console.log(`Jeff 2 running at http://localhost:${PORT}/web/`);
     console.log(`  AI:   ${MOCK ? "TEST MODE (no ANTHROPIC_API_KEY in .env)" : MODEL}`);
     console.log(`  Jeff: ${JEFF_URL || "off (set JEFF_DIR in .env to turn it on)"}`);
+    console.log(`  Team password: ${SITE_PASSWORD ? "on" : "off"}`);
   });
 }
