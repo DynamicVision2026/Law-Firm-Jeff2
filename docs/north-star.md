@@ -6,6 +6,18 @@ Every feature, question, word and screen is judged by one test:
 > Does this make a person more willing to **start**, **finish** and **share** their case?
 If not, remove it or change it.
 
+## Positioning: the legal pre-visit check
+
+Like a symptom checker before seeing a doctor (e.g. Ubie in Japan: free for
+people, institutions pay). The person knows where it hurts, not the legal
+category. We sort it, show what's at stake and what help costs, and point to
+the right next step. Lawyers = doctors, law firms = hospitals.
+Not a diagnosis: general information only, never legal advice or a win %.
+
+Two kinds of people come:
+1. **"Someone owes me money and won't pay"** — can I get it back, how, is it worth the cost?
+2. **"I don't know what I'm entitled to"** (traffic, divorce, insurance) — is the offer fair?
+
 ## Design rules that follow from the goal
 
 1. **Lead with money.** The first thing people see in the result is a concrete
