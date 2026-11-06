@@ -5,6 +5,7 @@
 // Node 18+, no dependencies.
 
 import http from "node:http";
+import { existsSync, readFileSync } from "node:fs";
 import { readFile, appendFile, mkdir } from "node:fs/promises";
 import { dirname, extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,6 +14,15 @@ import { CATEGORIES, CATEGORY_IDS, categoryById, MARKETS } from "../engine/categ
 import { COPY, FOLLOWUPS } from "../engine/copy.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+
+// Private settings file (.env in the project folder, never uploaded). Real env vars win.
+const ENV_FILE = join(ROOT, ".env");
+if (existsSync(ENV_FILE)) {
+  for (const line of readFileSync(ENV_FILE, "utf8").split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (m && !(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+  }
+}
 const PORT = Number(process.env.PORT || 8000);
 const KEY = process.env.ANTHROPIC_API_KEY || "";
 const MODEL = process.env.LLM_MODEL || "claude-haiku-5-5";
@@ -65,17 +75,38 @@ Problem: """${text}"""`
   return { ...out, source: "llm" };
 }
 
+// English descriptions Jeff chooses between (it reads Japanese and Chinese input).
+const JEFF_LABELS = {
+  money_owed: "Someone owes the person money and will not pay it back (loans to friends or family, unpaid invoices)",
+  own_debt: "The person's own debts they cannot repay (loans, credit cards, debt collection against them)",
+  labor: "Work problems: unpaid wages or overtime, dismissal, forced resignation, workplace harassment",
+  traffic: "Traffic accidents and their compensation or insurance settlement",
+  insurance: "An insurance company refusing or reducing a claim (not a traffic accident)",
+  divorce: "Divorce or separation, division of property, compensation between spouses",
+  inheritance: "Inheritance, wills and estates",
+  child: "Child custody, visitation or child support",
+  housing: "Renting or housing: deposits, move-out charges, eviction, landlord problems",
+  consumer: "Consumer problems, refunds, contracts with businesses, scams and fraud",
+  medical: "Medical accidents or malpractice",
+  neighbor: "Disputes with neighbours (noise, boundaries, trouble nearby)",
+  defamation: "Defamation, online abuse, harmful posts on the internet",
+  criminal: "Criminal matters, as a victim or as the accused, police involvement",
+  visa: "Visa, residence status and immigration procedures",
+};
+
 async function jeffClassify(text) {
   if (!JEFF_URL) return null;
   try {
     const res = await fetch(JEFF_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, question: "Which legal problem category is this?", options: CATEGORY_IDS }),
+      body: JSON.stringify({ text, labels: JEFF_LABELS }),
+      signal: AbortSignal.timeout(15000),
     });
-    const p = (await res.json()).probabilities;
-    const [cat, prob] = Object.entries(p).sort((a, b) => b[1] - a[1])[0];
-    return { category: cat, confidence: prob };
+    if (!res.ok) return null;
+    const out = await res.json();
+    const category = CATEGORY_IDS.includes(out.category) ? out.category : "other";
+    return { category, confidence: out.confidence ?? null, urgency: out.urgency ?? null };
   } catch { return null; }
 }
 
@@ -240,5 +271,9 @@ export const server = http.createServer(async (req, res) => {
 });
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  server.listen(PORT, () => console.log(`Jeff 2 running at http://localhost:${PORT}/web/  (${MOCK ? "TEST MODE: no AI key" : "AI: " + MODEL})`));
+  server.listen(PORT, () => {
+    console.log(`Jeff 2 running at http://localhost:${PORT}/web/`);
+    console.log(`  AI:   ${MOCK ? "TEST MODE (no ANTHROPIC_API_KEY in .env)" : MODEL}`);
+    console.log(`  Jeff: ${JEFF_URL || "off (set JEFF_DIR in .env to turn it on)"}`);
+  });
 }

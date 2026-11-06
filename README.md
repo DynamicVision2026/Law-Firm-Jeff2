@@ -36,6 +36,7 @@ case-packs/        Deep lawyer packs, one file per market + case type (no coding
 engine/            engine.js (judge + calculator + templates), categories.js (16 types,
                    cost help per market), copy.js (all interface text, 3 languages)
 server/            server.mjs — web page + API (triage, report, feedback), privacy redaction
+jeff-bridge/       bridge.py — connects Jeff's triage adapter (runs inside your Jeff folder)
 web/               The pre-check page (one question per screen)
 docs/              north-star.md, case-pack-guide.md
 tests/             engine + server tests
@@ -63,12 +64,15 @@ tests/             engine + server tests
 - [ ] More deep packs, chosen by what the log shows people bring most
 - [ ] Hosting (mainland China needs a separate local deployment)
 
-## Run it locally
+## Run it on your Mac
 
+Step-by-step guide: [docs/setup-mac.md](docs/setup-mac.md). In short: put your Anthropic key and your
+Jeff folder in `.env` (never uploaded), then double-click **Start Jeff2.command**.
+
+For developers:
 ```
-node server/server.mjs                         # test mode (no AI key)
-ANTHROPIC_API_KEY=sk-... node server/server.mjs   # real AI
-open http://localhost:8000/web/        (?m=tw Taiwan, ?m=cn mainland)
+node server/server.mjs                         # reads .env; test mode if no key
+uv run --project /path/to/jeff python jeff-bridge/bridge.py   # Jeff connector on :8790
 node tests/engine.test.mjs && node tests/server.test.mjs
 ```
 
