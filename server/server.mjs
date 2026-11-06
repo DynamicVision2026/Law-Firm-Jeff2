@@ -65,16 +65,31 @@ async function llmJSON(system, user) {
   if (!res.ok) throw new Error(`LLM ${res.status}: ${await res.text()}`);
   const data = await res.json();
   const text = data.content?.map((b) => b.text || "").join("") || "";
-  const json = text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1);
-  return JSON.parse(json);
+  const start = text.indexOf("{"), end = text.lastIndexOf("}");
+  if (start < 0 || end < start) throw new Error("AI reply had no JSON: " + text.slice(0, 200));
+  return JSON.parse(text.slice(start, end + 1));
 }
 
 const GUARDRAILS = `You are the triage step of a free legal pre-check run under lawyer supervision.
 Rules: give general information only, never legal advice; never predict a win or give a probability;
 never repeat personal names, addresses or contact details; be calm, plain and kind; reply with JSON only.`;
 
+// Last AI problem, shown on /api/status (never includes the key or the person's text).
+const STATUS = { lastAiError: null, lastAiErrorAt: null, aiOk: 0, aiFailed: 0 };
+function aiFailed(where, e) {
+  STATUS.aiFailed++;
+  STATUS.lastAiError = `${where}: ${String(e.message || e).slice(0, 400)}`;
+  STATUS.lastAiErrorAt = new Date().toISOString();
+  console.error("[AI error]", STATUS.lastAiError);
+}
+
 async function classify(text, lang) {
   if (MOCK) return mockClassify(text);
+  try { const r = await classifyLLM(text, lang); STATUS.aiOk++; return r; }
+  catch (e) { aiFailed("classify", e); return { ...mockClassify(text), source: "fallback" }; }
+}
+
+async function classifyLLM(text, lang) {
   const out = await llmJSON(
     GUARDRAILS,
     `Classify this person's problem.
@@ -124,6 +139,11 @@ async function jeffClassify(text) {
 
 async function lightReport(text, lang, category, answers) {
   if (MOCK) return mockLight(lang, answers);
+  try { const r = await lightReportLLM(text, lang, category, answers); STATUS.aiOk++; return r; }
+  catch (e) { aiFailed("report", e); return mockLight(lang, answers); }
+}
+
+async function lightReportLLM(text, lang, category, answers) {
   const out = await llmJSON(
     GUARDRAILS,
     `Write a short pre-check report in ${lang} for a person with a "${category}" problem.
@@ -255,7 +275,11 @@ async function log(rec) {
 // ---------- http ----------
 
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".json": "application/json; charset=utf-8", ".css": "text/css" };
-const ROUTES = { "/api/triage": triage, "/api/report": report, "/api/feedback": feedback };
+async function status() {
+  return { ai: MOCK ? "test mode (no key)" : MODEL, jeff: JEFF_URL || "off", password: !!SITE_PASSWORD, ...STATUS };
+}
+
+const ROUTES = { "/api/triage": triage, "/api/report": report, "/api/feedback": feedback, "/api/status": status };
 
 export const server = http.createServer(async (req, res) => {
   try {
@@ -264,7 +288,7 @@ export const server = http.createServer(async (req, res) => {
       return res.end("Team password required / チームパスワードが必要です / 需要团队密码");
     }
     const url = new URL(req.url, "http://x");
-    if (req.method === "POST" && ROUTES[url.pathname]) {
+    if ((req.method === "POST" || url.pathname === "/api/status") && ROUTES[url.pathname]) {
       let body = "";
       for await (const chunk of req) { body += chunk; if (body.length > 20000) throw new Error("too large"); }
       const out = await ROUTES[url.pathname](JSON.parse(body || "{}"));
