@@ -1,0 +1,222 @@
+{
+  "meta": {
+    "market": "jp",
+    "case_type": "traffic",
+    "language": "ja",
+    "title": "交通事故 無料ケース診断",
+    "status": "draft",
+    "approved_by": "",
+    "reviewed_on": "",
+    "notes_for_reviewers": "DRAFT by Claude for lawyer review. All amounts, deadlines and wording must be checked against the current 赤い本 edition and 民法 before going live."
+  },
+
+  "questions": [
+    {
+      "id": "injured",
+      "text": "事故でケガをしましたか？",
+      "type": "single",
+      "options": [
+        { "value": "yes", "label": "はい" },
+        { "value": "no", "label": "いいえ（物損のみ）" }
+      ]
+    },
+    {
+      "id": "injury_type",
+      "text": "主なケガの種類は？",
+      "type": "single",
+      "show_if": { "injured": "yes" },
+      "options": [
+        { "value": "whiplash", "label": "むちうち・打撲・ねんざ" },
+        { "value": "fracture", "label": "骨折" },
+        { "value": "serious", "label": "頭部・内臓など重いケガ" },
+        { "value": "unknown", "label": "わからない" }
+      ]
+    },
+    {
+      "id": "treatment_months",
+      "text": "これまでの通院・入院期間は？",
+      "type": "single",
+      "show_if": { "injured": "yes" },
+      "options": [
+        { "value": "0", "label": "まだ通院していない" },
+        { "value": "1", "label": "1ヶ月未満" },
+        { "value": "3", "label": "1〜3ヶ月" },
+        { "value": "6", "label": "3〜6ヶ月" },
+        { "value": "7", "label": "6ヶ月以上" }
+      ]
+    },
+    {
+      "id": "treatment_status",
+      "text": "治療の状況は？",
+      "type": "single",
+      "show_if": { "injured": "yes" },
+      "options": [
+        { "value": "ongoing", "label": "治療中" },
+        { "value": "finished", "label": "治療が終わった" },
+        { "value": "fixed", "label": "医師から「症状固定」と言われた" }
+      ]
+    },
+    {
+      "id": "fault",
+      "text": "事故の過失割合は（わかる範囲で）？",
+      "type": "single",
+      "options": [
+        { "value": "other_100", "label": "相手が100%悪い（追突など）" },
+        { "value": "other_most", "label": "主に相手が悪い" },
+        { "value": "shared", "label": "お互い同じくらい" },
+        { "value": "me_most", "label": "主に自分が悪い" },
+        { "value": "unknown", "label": "わからない" }
+      ]
+    },
+    {
+      "id": "insurer_offer",
+      "text": "保険会社から示談金の提示はありましたか？",
+      "type": "single",
+      "options": [
+        { "value": "none", "label": "まだない" },
+        { "value": "offered", "label": "提示があったが、まだ合意していない" },
+        { "value": "signed", "label": "すでに示談書にサインした" }
+      ]
+    },
+    {
+      "id": "lawyer_rider",
+      "text": "自動車保険に「弁護士費用特約」はついていますか？",
+      "type": "single",
+      "help": "ご家族の保険の特約が使える場合もあります。",
+      "options": [
+        { "value": "yes", "label": "ついている" },
+        { "value": "no", "label": "ついていない" },
+        { "value": "unknown", "label": "わからない" }
+      ]
+    },
+    {
+      "id": "accident_when",
+      "text": "事故はいつ起きましたか？",
+      "type": "single",
+      "options": [
+        { "value": "lt1y", "label": "1年以内" },
+        { "value": "1to3y", "label": "1〜3年前" },
+        { "value": "3to5y", "label": "3〜5年前" },
+        { "value": "gt5y", "label": "5年以上前" }
+      ]
+    },
+    {
+      "id": "region",
+      "text": "お住まいの都道府県",
+      "type": "prefecture"
+    },
+    {
+      "id": "story",
+      "text": "事故の状況を簡単に教えてください（お名前・住所などは書かないでください）",
+      "type": "free_text",
+      "max_chars": 300,
+      "optional": true
+    }
+  ],
+
+  "jeff": {
+    "recommendation": {
+      "question": "Should this person consult a lawyer about this traffic accident?",
+      "options": ["high", "medium", "low"]
+    },
+    "urgency": {
+      "question": "How urgent is this case?",
+      "options": ["urgent", "normal"]
+    },
+    "factors": {
+      "question": "Which of these factors apply to this case? (choose all that apply)",
+      "multi": true,
+      "options": [
+        "long_treatment",
+        "serious_injury",
+        "other_party_at_fault",
+        "fault_disputed",
+        "offer_received",
+        "lawyer_rider",
+        "possible_after_effects",
+        "property_only"
+      ]
+    },
+    "review_threshold": 0.6
+  },
+
+  "calculator": {
+    "basis": "赤い本（民事交通事故訴訟 損害賠償額算定基準）入通院慰謝料の目安 — 版の確認が必要",
+    "unit": "万円",
+    "applies_if": { "injured": "yes" },
+    "table_key": "treatment_months",
+    "tables": {
+      "minor": {
+        "used_for": ["whiplash"],
+        "label": "むちうち等（別表II相当）",
+        "ranges": { "1": [15, 19], "3": [40, 53], "6": [70, 89], "7": [89, 120] }
+      },
+      "standard": {
+        "used_for": ["fracture", "serious", "unknown"],
+        "label": "骨折等（別表I相当）",
+        "ranges": { "1": [20, 28], "3": [55, 73], "6": [90, 116], "7": [116, 160] }
+      }
+    },
+    "note": "入通院慰謝料のみの目安です。休業損害・後遺障害・治療費などは含みません。"
+  },
+
+  "factors": {
+    "long_treatment": "通院期間が長いほど、保険会社の提示と裁判基準の差が大きくなりやすいです。",
+    "serious_injury": "骨折や重いケガは、賠償額が大きくなりやすい傾向があります。",
+    "other_party_at_fault": "相手の過失が大きい場合、受け取れる金額が減らされにくくなります。",
+    "fault_disputed": "過失割合に争いがある場合、専門家の確認で結果が変わることがあります。",
+    "offer_received": "保険会社の提示額は、裁判基準より低いことが多いです。",
+    "lawyer_rider": "弁護士費用特約があれば、多くの場合、費用の自己負担なく相談・依頼できます。",
+    "possible_after_effects": "痛みやしびれが残る場合、後遺障害の認定で賠償額が大きく変わります。",
+    "property_only": "物損のみの事故は、弁護士に依頼すると費用が上回ることもあります。"
+  },
+
+  "warnings": [
+    {
+      "id": "signed_settlement",
+      "if": { "insurer_offer": "signed" },
+      "level": "high",
+      "text": "示談書にサイン済みの場合、原則としてやり直しは困難です。早めに専門家に確認してください。"
+    },
+    {
+      "id": "deadline_near",
+      "if": { "accident_when": "3to5y" },
+      "level": "high",
+      "text": "請求には期限（時効）があります。物損は事故から3年、人身損害は5年が目安です。お急ぎください。"
+    },
+    {
+      "id": "deadline_passed",
+      "if": { "accident_when": "gt5y" },
+      "level": "high",
+      "text": "時効が過ぎている可能性があります。例外もあるため、専門家に確認してください。"
+    },
+    {
+      "id": "dont_sign_yet",
+      "if": { "insurer_offer": "offered" },
+      "level": "medium",
+      "text": "提示額に納得できない場合、まだ示談書にサインしないでください。"
+    },
+    {
+      "id": "keep_treating",
+      "if": { "treatment_status": "ongoing" },
+      "level": "info",
+      "text": "治療中は、医師の判断に従って通院を続けることが大切です。"
+    }
+  ],
+
+  "result": {
+    "headline": {
+      "high": "弁護士への相談：おすすめ度【高】",
+      "medium": "弁護士への相談：おすすめ度【中】",
+      "low": "弁護士への相談：おすすめ度【低】"
+    },
+    "range_label": "裁判基準の目安（入通院慰謝料）",
+    "next_step": {
+      "high": "専門家に早めに相談することをおすすめします。",
+      "medium": "保険会社の提示が出たら、一度専門家に確認すると安心です。",
+      "low": "まずは保険会社とのやりとりの記録を残しておきましょう。必要に応じて法テラスでも相談できます。"
+    },
+    "supervision_label": "弁護士監修",
+    "disclaimer": "この診断は一般的な情報の提供を目的としたもので、法的助言ではありません。実際の金額や結果は個別の事情により異なります。"
+  }
+}
