@@ -5,6 +5,9 @@ form (no personal data), and get an instant result: how strongly a lawyer
 consultation is recommended, an estimated range, key points, deadlines and a
 next step.
 
+**North star:** make individuals want to share their case.
+Every change is checked against [docs/north-star.md](docs/north-star.md).
+
 **Stage 1 goal:** prove that people use the check, find it helpful, and that
 the screening agrees with lawyers' judgment. Law-firm delivery comes in Stage 2.
 
