@@ -41,14 +41,14 @@ docs/              north-star.md, case-pack-guide.md
 tests/             engine + server tests
 ```
 
-## Markets and case types (MVP)
+## Markets (MVP)
 
-| Market | Language | Case types |
+| Market | Language | Coverage |
 |---|---|---|
-| Japan (jp) | Japanese | traffic, divorce, labor |
-| Taiwan (tw) | Traditional Chinese | traffic, divorce, labor |
-| Hong Kong (hk) | Traditional Chinese + English | traffic, divorce, labor |
-| Mainland China (cn) | Simplified Chinese | traffic, divorce, labor |
+| Japan (jp) | Japanese | All 16 categories (light report); traffic deep report with amount estimate |
+| Taiwan (tw) | Traditional Chinese | All 16 categories; traffic deep report (amount table pending) |
+| Mainland China (cn) | Simplified Chinese | All 16 categories; traffic deep report (amount table pending) |
+| Hong Kong (hk) | Traditional Chinese + English | Later |
 
 ## Status
 
