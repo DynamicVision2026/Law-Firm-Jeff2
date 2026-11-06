@@ -9,6 +9,8 @@ The first run downloads the model (about 1.7 GB); after that it works offline.
 
 POST /classify  {"text": "...", "labels": {"traffic": "Traffic accidents ...", ...}}
   ->            {"category": "traffic", "confidence": 0.93, "probabilities": {...}, "urgency": 0.0-1.0}
+POST /judge     {"text": "...", "decisions": [{"id": "need", "labels": {"now": "...", "consult": "..."}}, ...]}
+  ->            {"decisions": {"need": {"value": "now", "confidence": 0.8, "probabilities": {...}}}, "urgency": 0.0-1.0}
 GET  /health    -> {"ok": true}
 """
 
@@ -47,6 +49,28 @@ def classify(text: str, labels: dict[str, str]) -> dict:
     }
 
 
+def choose(text: str, labels: dict[str, str]) -> dict:
+    """One Jeff decision: which of the caller's options fits the text, with a share for each."""
+    caller = {k: v for k, v in labels.items() if k != "other"}
+    route = jeff.function("triage.route", context=CONTEXT, labels=caller)(text)
+    probs = {k: float((route.probabilities or {}).get(k, 0.0)) for k in caller}
+    total = sum(probs.values())
+    if total > 0:  # leave out Jeff's built-in "other" bucket and rescale over our options
+        probs = {k: p / total for k, p in probs.items()}
+    value = route.value if route.value in caller else max(probs, key=probs.get)
+    return {"value": value, "confidence": probs.get(value, route.confidence or 0.0), "probabilities": probs}
+
+
+def judge(text: str, decisions: list[dict]) -> dict:
+    """Several Jeff decisions about one case, plus Jeff's urgency score."""
+    out = {}
+    with lock:
+        for d in decisions[:8]:
+            out[str(d["id"])] = choose(text, dict(d["labels"]))
+        urgency = jeff.function("triage.urgency", context=CONTEXT)(text)
+    return {"decisions": out, "urgency": (urgency.score or 0) / 4}
+
+
 class Handler(BaseHTTPRequestHandler):
     def _send(self, status: int, body: dict) -> None:
         data = json.dumps(body, ensure_ascii=False).encode()
@@ -60,12 +84,15 @@ class Handler(BaseHTTPRequestHandler):
         self._send(200, {"ok": True}) if self.path == "/health" else self._send(404, {"error": "not found"})
 
     def do_POST(self) -> None:
-        if self.path != "/classify":
+        if self.path not in ("/classify", "/judge"):
             return self._send(404, {"error": "not found"})
         try:
-            length = min(int(self.headers.get("Content-Length", 0)), 20000)
+            length = min(int(self.headers.get("Content-Length", 0)), 40000)
             req = json.loads(self.rfile.read(length) or b"{}")
-            self._send(200, classify(str(req.get("text", ""))[:2000], dict(req.get("labels", {}))))
+            text = str(req.get("text", ""))[:3000]
+            if self.path == "/judge":
+                return self._send(200, judge(text, list(req.get("decisions", []))))
+            self._send(200, classify(text, dict(req.get("labels", {}))))
         except Exception as error:  # keep the main site working whatever happens here
             self._send(500, {"error": str(error)})
 

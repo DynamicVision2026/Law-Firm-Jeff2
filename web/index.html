@@ -58,6 +58,22 @@
   .note { background: #fff4d6; border: 1px solid #e8c766; border-radius: 8px; padding: 6px 10px; font-size: 12px; margin-top: 8px; }
   .spinner { width: 34px; height: 34px; border: 4px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin: 30px auto 12px; }
   @keyframes spin { to { transform: rotate(360deg); } }
+  .jeff { border: 2px solid var(--accent); }
+  .jeffhead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .pct { font-size: 16px; color: var(--muted); font-weight: 700; }
+  .outrow { display: flex; align-items: center; gap: 12px; }
+  .big { font-size: 34px; font-weight: 800; line-height: 1; min-width: 3.2ch; }
+  .big.good { color: var(--low); } .big.mid { color: var(--mid); } .big.weak { color: var(--high); }
+  .meter { flex: 1; height: 10px; background: var(--line); border-radius: 99px; overflow: hidden; }
+  .meter > div { height: 100%; background: var(--accent); }
+  .meter.good > div { background: var(--low); } .meter.mid > div { background: var(--mid); } .meter.weak > div { background: var(--high); }
+  .factors { list-style: none; padding: 0; display: grid; gap: 6px; }
+  .factors li { display: flex; gap: 8px; align-items: flex-start; }
+  .factors li span { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 800; color: #fff; margin-top: 2px; }
+  .factors li.ok span { background: var(--low); } .factors li.ng span { background: var(--mid); }
+  .fine { font-size: 12px; color: var(--muted); margin: 12px 0 0; }
+  .steps { margin: 0; padding-left: 22px; display: grid; gap: 4px; }
+  .cta { background: var(--accent-soft); border-color: var(--accent); }
   .center { text-align: center; }
 </style>
 </head>
@@ -192,32 +208,64 @@ function renderFollowup() {
 async function getReport() {
   thinking();
   try {
-    S.result = await api("/api/report", {
-      market: S.market, text: S.text, category: S.triage.category, answers: S.answers, consent: S.consent, jeff: S.triage.jeff,
+    S.result = await api("/api/judge", {
+      market: S.market, text: S.text, category: S.triage.category, answers: S.answers, followups: visible(),
+      consent: S.consent, aiCategory: S.triage.aiCategory, jeffCategory: S.triage.jeff?.category ?? null,
     });
     renderResult();
+    api("/api/explain", { market: S.market, text: S.text, answers: S.answers, followups: visible(), verdict: S.result })
+      .then(renderExplain).catch(() => renderExplain(null));
   } catch { fail(); }
 }
 
-// ---------- screen 3: the report ----------
+// ---------- screen 3: the report — Jeff's instant result first, then money, cost, and the AI's explanation ----------
+const bar = (pct, cls = "") => `<div class="meter ${cls}"><div style="width:${Math.max(3, Math.min(100, pct))}%"></div></div>`;
 function renderResult() {
-  const c = t(), r = S.result;
-  let h = `<span class="detected">${esc(c.detected)}：${esc(r.categoryLabel)}</span><div class="card">`;
-  h += `<p class="headline lvl-${r.level}">${esc(r.headline)}</p>`;
-  if (r.range) h += `<p class="muted" style="margin:8px 0 0">${esc(r.range.label)}</p><p class="range">${r.range.min}〜${r.range.max}${esc(r.range.unit)}</p><p class="muted">${esc(r.range.note)}</p>`;
-  if (r.atStake) h += `<h3>${esc(c.atStake)}</h3><p class="stake">${esc(r.atStake)}</p>`;
-  h += `<h3>${esc(c.cost)}</h3><p>${esc(r.cost)}</p>`;
-  if (r.reasons?.length) h += `<h3>${esc(c.reasons)}</h3><ul>${r.reasons.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`;
-  if (r.warnings?.length) h += `<h3>${esc(c.warnings)}</h3>${r.warnings.map((w) => `<div class="warn ${esc(w.level)}">${esc(w.text)}</div>`).join("")}`;
-  h += `<h3>${esc(c.nextStep)}</h3><p>${esc(r.nextStep)}</p>`;
-  h += `<div class="foot"><span class="badge">${esc(r.supervision)}</span><br>${esc(r.disclaimer)}</div></div>`;
+  const c = t(), R = c.r, r = S.result;
+  const outCls = r.outlook.pct >= 60 ? "good" : r.outlook.pct >= 35 ? "mid" : "weak";
+  let h = `<span class="detected">${esc(c.detected)}：${esc(r.categoryLabel)}</span>`;
+
+  // 1. Jeff instant check
+  h += `<div class="card jeff">
+    <div class="jeffhead"><b>${esc(R.jeffTitle)}</b><span class="muted">${esc(R.jeffSpeed(r.seconds))}</span></div>
+    ${r.source === "ai" ? `<p class="muted" style="margin:0">${esc(R.byAI)}</p>` : ""}
+    <p class="muted" style="margin:10px 0 2px">${esc(R.needQ)}</p>
+    <p class="headline lvl-${r.level}" style="margin:0">${esc(R.need[r.need.value] || "")} <span class="pct">${r.need.pct}%</span></p>
+    <p class="muted" style="margin:12px 0 2px">${esc(R.outlookQ)}</p>
+    <div class="outrow"><span class="big ${outCls}">${r.outlook.pct}%</span>${bar(r.outlook.pct, outCls)}</div>
+    ${r.urgency != null ? `<p style="margin:10px 0 0">${esc(R.urgency)}：<b class="lvl-${["low", "medium", "high"][r.urgency]}">${esc(R.urg[r.urgency])}</b></p>` : ""}
+    <h3>${esc(R.factors)}</h3>
+    <ul class="factors">${r.factors.map((f) => `<li class="${f.ok ? "ok" : "ng"}"><span>${f.ok ? "✓" : "!"}</span>${esc(f.label)}</li>`).join("")}</ul>
+    <p class="fine">${esc(R.outlookNote)}</p>
+  </div>`;
+
+  // 2. money, lawyer fees, what a lawyer changes
+  h += `<div class="card">`;
+  if (r.money) h += `<h3 style="margin-top:0">${esc(R.money)}</h3><p class="range">${esc(r.money.text)}</p>${r.money.note ? `<p class="muted">${esc(r.money.note)}</p>` : ""}`;
+  h += `<h3${r.money ? "" : ' style="margin-top:0"'}>${esc(R.fee)}</h3><p>${esc(r.fee.text)}</p>`;
+  if (r.fee.small) h += `<div class="warn">${esc(r.fee.smallText)}</div>`;
+  h += `<h3>${esc(R.help)}</h3><p>${esc(r.help)}</p>`;
+  h += `<h3>${esc(R.free)}</h3><p class="muted">${esc(r.free)}</p></div>`;
+
+  // 3. the AI's explanation (arrives a few seconds later)
+  h += `<div class="card" id="explain"><div class="spinner" style="margin:6px auto"></div><p class="center muted">${esc(R.explaining)}</p></div>`;
+
+  // 4. lawyer review — the moment the person shares their case
+  h += `<div class="card cta" id="req"><p class="q" style="margin-top:0">${esc(R.requestTitle)}</p><p class="muted">${esc(R.requestText)}</p>
+    <button class="primary" id="reqbtn">${esc(R.requestBtn)}</button></div>`;
+
   h += `<div class="card" id="fb"><p class="q" style="font-size:16px">${esc(c.feedbackQ)}</p>
         <div class="opts" style="grid-template-columns:1fr 1fr"><button class="opt" data-h="yes">${esc(c.yes)}</button><button class="opt" data-h="no">${esc(c.no)}</button></div></div>`;
-  h += `<button class="primary" id="re">${esc(c.restart)}</button>`;
-  if (r.draft) h += `<p class="note">DRAFT — 弁護士確認前 / 律師確認前</p>`;
+  h += `<div class="foot"><span class="badge">${esc(r.supervision)}</span><br>${esc(r.disclaimer)}</div>`;
+  h += `<button class="primary" id="re" style="margin-top:14px">${esc(c.restart)}</button>`;
+  if (r.draft) h += `<p class="note">DRAFT — 弁護士確認前 / 律師確認前 / 律师确认前</p>`;
   app.innerHTML = h;
   window.scrollTo({ top: 0, behavior: "smooth" });
   app.querySelector("#re").onclick = () => reset();
+  app.querySelector("#reqbtn").onclick = () => {
+    api("/api/request", { id: r.id, market: S.market, category: r.category }).catch(() => {});
+    app.querySelector("#req").innerHTML = `<p class="center" style="margin:0">✓ ${esc(R.requestDone)}</p>`;
+  };
   app.querySelectorAll("[data-h]").forEach((b) => b.onclick = () => {
     const helpful = b.dataset.h;
     const fb = app.querySelector("#fb");
@@ -227,6 +275,17 @@ function renderResult() {
       fb.innerHTML = `<p class="center">${esc(c.thanks)}</p>`;
     });
   });
+}
+
+function renderExplain(e) {
+  const box = app.querySelector("#explain");
+  if (!box) return;
+  const R = t().r, r = S.result;
+  const warns = [...(e?.warnings || []).map((w) => ({ level: "medium", text: w })), ...(r.packWarnings || [])].slice(0, 3);
+  if (!e) { box.remove(); return; }
+  box.innerHTML = `<h3 style="margin-top:0">${esc(R.why)}</h3><p>${esc(e.why)}</p>
+    <h3>${esc(R.steps)}</h3><ol class="steps">${e.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>
+    ${warns.length ? `<h3>${esc(R.warnings)}</h3>${warns.map((w) => `<div class="warn ${esc(w.level)}">${esc(w.text)}</div>`).join("")}` : ""}`;
 }
 
 // ---------- language switch ----------

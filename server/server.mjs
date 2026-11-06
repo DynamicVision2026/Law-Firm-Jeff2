@@ -1,4 +1,5 @@
-// Jeff 2 server — serves the web page and the three API calls.
+// Jeff 2 server — serves the web page and the API calls.
+// Flow: /api/triage (problem type + questions) → /api/judge (Jeff decides, ~seconds) → /api/explain (AI explains Jeff's result).
 // Run:  node server/server.mjs           (test mode, no AI key needed)
 //       ANTHROPIC_API_KEY=... node server/server.mjs   (real AI)
 // Optional env: PORT (8000), LLM_MODEL (claude-haiku-5-5), JEFF_URL (Jeff service), LOG_FILE
@@ -12,6 +13,7 @@ import { fileURLToPath } from "node:url";
 import { runCheck } from "../engine/engine.js";
 import { CATEGORIES, CATEGORY_IDS, categoryById, MARKETS } from "../engine/categories.js";
 import { COPY, FOLLOWUPS } from "../engine/copy.js";
+import { caseType, estimateFee } from "../engine/casetypes.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -151,29 +153,6 @@ async function jeffClassify(text) {
   } catch { return null; }
 }
 
-async function lightReport(text, lang, category, answers) {
-  if (MOCK) return mockLight(lang, answers);
-  try { const r = await lightReportLLM(text, lang, category, answers); STATUS.aiOk++; return r; }
-  catch (e) { aiFailed("report", e); return mockLight(lang, answers); }
-}
-
-async function lightReportLLM(text, lang, category, answers) {
-  const out = await llmJSON(
-    GUARDRAILS,
-    `Write a short pre-check report in ${lang} for a person with a "${category}" problem.
-Their description: """${text}"""
-Their answers: ${JSON.stringify(answers)}
-Return JSON:
-{"level": "high"|"medium"|"low"  (how strongly a lawyer consultation is recommended; high if large money, court papers, deadlines or signature requests),
- "at_stake": one sentence on what money or rights are at stake, using their amount band if given (no exact predictions),
- "key_points": exactly 3 short sentences on the facts that usually matter in cases like this (general, not a verdict),
- "warnings": up to 2 short warnings only if clearly relevant (e.g. limitation periods, do not sign yet, keep evidence),
- "next_step": one or two sentences on a sensible next step, including self-help options when the amount is small}`
-  );
-  if (!["high", "medium", "low"].includes(out.level)) out.level = "medium";
-  return out;
-}
-
 // ---------- test-mode fallbacks (no AI key) ----------
 
 const KEYWORDS = [
@@ -198,16 +177,73 @@ function mockClassify(text) {
   const urgent = /裁判所|法院|サイン|签字|簽名|解雇|期限|時効|时效|時效|逮捕/.test(text);
   return { category: hit ? hit[0] : "other", urgency: urgent ? "urgent" : "normal", summary: "", source: "mock" };
 }
-function mockLight(lang, a) {
-  const big = /140万|150萬|20万元以上|60〜140/.test(a.amount || "");
-  const court = /裁判所|法院|サイン|签字|簽名/.test(a.other_side || "");
-  const level = court || big ? "high" : /お金の問題ではない|不是/.test(a.amount || "") ? "low" : "medium";
-  const t = {
-    ja: { at: a.amount || "不明", kp: ["証拠（書面・やりとり・振込記録）の有無が結果を大きく左右します。", "請求できる期間（時効）があるため、時間がたつほど不利になることがあります。", "金額が小さい場合は、少額訴訟など自分でできる方法もあります。"], ns: "証拠を整理し、早めに専門家に確認しましょう。" },
-    "zh-Hant": { at: a.amount || "不明", kp: ["是否有證據（書面、對話、轉帳紀錄）會大幅影響結果。", "請求權有時效，時間拖越久可能越不利。", "金額較小時，也可以考慮小額訴訟等自行處理的方式。"], ns: "請先整理證據，並儘早向專業人士確認。" },
-    "zh-Hans": { at: a.amount || "不明", kp: ["是否有证据（书面材料、聊天记录、转账记录）会很大程度影响结果。", "诉讼时效有限，拖得越久可能越不利。", "金额较小时，也可以考虑小额诉讼等自行处理的方式。"], ns: "请先整理证据，并尽早向专业人士确认。" },
-  }[lang];
-  return { level, at_stake: t.at, key_points: t.kp, warnings: [], next_step: t.ns };
+
+// ---------- the decisions Jeff makes (English options; Jeff reads Japanese and Chinese input) ----------
+
+const NEED = {
+  now: "Serious or urgent: large money, injury, court papers, a deadline, a signature request, dismissal or police are involved, so the person should talk to a lawyer now",
+  consult: "A real legal problem that is worth a free consultation with a lawyer",
+  self: "Small or simple: the person can likely handle it alone or with free public help",
+};
+const OUTLOOK = {
+  good: "With a lawyer's help the person is likely to get a good result: the facts and evidence favour them",
+  mixed: "Uncertain: some facts help the person and some hurt them",
+  weak: "Even with a lawyer the person is unlikely to get much: weak evidence, a very small amount, or too late",
+};
+const LEVEL = { now: "high", consult: "medium", self: "low" };
+
+function decisionsFor(categoryId) {
+  return [
+    { id: "need", labels: NEED },
+    { id: "outlook", labels: OUTLOOK },
+    ...caseType(categoryId).factors.map((f) => ({ id: "f_" + f.id, labels: { yes: f.yes, no: f.no } })),
+  ];
+}
+
+async function jeffJudge(text, decisions) {
+  if (!JEFF_URL) return null;
+  try {
+    const res = await fetch(JEFF_URL.replace(/\/classify$/, "/judge"), {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, decisions }), signal: AbortSignal.timeout(30000),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
+}
+
+// Same decisions answered by the AI, used only when Jeff is off.
+async function aiJudge(text, decisions) {
+  if (MOCK) return mockJudge(text, decisions);
+  try {
+    const spec = decisions.map((d) => `"${d.id}": one of ${Object.keys(d.labels).map((k) => `"${k}" (${d.labels[k]})`).join(", ")}`).join("\n");
+    const out = await llmJSON(GUARDRAILS, `For this case, give a probability (0-1, summing to 1) for each option of each decision.
+${spec}
+Return JSON: {"<decision id>": {"<option>": probability, ...}, ...}
+Case: """${text}"""`);
+    STATUS.aiOk++;
+    const decisionsOut = {};
+    for (const d of decisions) {
+      const probs = Object.fromEntries(Object.keys(d.labels).map((k) => [k, Number(out[d.id]?.[k]) || 0]));
+      const total = Object.values(probs).reduce((a, b) => a + b, 0) || 1;
+      for (const k in probs) probs[k] /= total;
+      const value = Object.keys(probs).reduce((a, b) => (probs[a] >= probs[b] ? a : b));
+      decisionsOut[d.id] = { value, confidence: probs[value], probabilities: probs };
+    }
+    return { decisions: decisionsOut, urgency: null };
+  } catch (e) { aiFailed("judge", e); return mockJudge(text, decisions); }
+}
+
+function mockJudge(text, decisions) {
+  const serious = /裁判所|法院|サイン|签字|簽名|解雇|解僱|辞退|逮捕|骨折|140万|150萬|20万元以上/.test(text);
+  const out = {};
+  for (const d of decisions) {
+    const keys = Object.keys(d.labels);
+    const value = d.id === "need" ? (serious ? "now" : "consult") : d.id === "outlook" ? "mixed" : "yes";
+    const probs = Object.fromEntries(keys.map((k) => [k, k === value ? 0.6 : 0.4 / (keys.length - 1)]));
+    out[d.id] = { value, confidence: 0.6, probabilities: probs };
+  }
+  return { decisions: out, urgency: serious ? 0.75 : 0.25 };
 }
 
 // ---------- API handlers ----------
@@ -216,12 +252,14 @@ async function loadPack(market, name) {
   return JSON.parse(await readFile(join(ROOT, "case-packs", market, `${name}.json`), "utf8"));
 }
 
+// Step 1: which kind of problem, and the tap questions for it. Jeff decides the type when it is sure.
 async function triage({ market = "jp", text = "" }) {
   const m = MARKETS[market] ? market : "jp";
   const lang = MARKETS[m].lang;
   const clean = redact(text);
   const [cls, jeff] = await Promise.all([classify(clean, lang), jeffClassify(clean)]);
-  const cat = categoryById(cls.category);
+  const useJeff = jeff && jeff.confidence >= 0.5 && jeff.category !== "other";
+  const cat = categoryById(useJeff ? jeff.category : cls.category);
 
   let followups, deep = false;
   if (cat.deepPack) {
@@ -231,49 +269,138 @@ async function triage({ market = "jp", text = "" }) {
       .filter((q) => !["story", "region"].includes(q.id))
       .map((q) => ({ id: q.id, text: q.text, help: q.help, show_if: q.show_if, options: q.options }));
   } else {
-    followups = FOLLOWUPS[lang].map((q) => ({ id: q.id, text: q.text, options: q.options.map((o) => ({ value: o, label: o })) }));
+    const own = caseType(cat.id).questions.map((q) => ({
+      id: q.id, text: q.text[lang], options: q.options[lang].map((o) => ({ value: o, label: o })),
+    }));
+    const shared = FOLLOWUPS[lang]
+      .filter((q) => cat.money || q.id !== "amount")
+      .map((q) => ({ id: q.id, text: q.text, options: q.options.map((o) => ({ value: o, label: o })) }));
+    followups = [...own, ...shared];
   }
   return {
-    market: m, category: cat.id, categoryLabel: cat[lang], urgency: cls.urgency, summary: cls.summary || "",
-    deep, followups, mock: MOCK, jeff,
+    market: m, category: cat.id, categoryLabel: cat[lang], categoryBy: useJeff ? "jeff" : "ai",
+    aiCategory: cls.category, urgency: cls.urgency, summary: cls.summary || "", deep, followups, mock: MOCK, jeff,
   };
 }
 
-async function report({ market = "jp", text = "", category = "other", answers = {}, consent = false, jeff = null }) {
+// The person's story plus their taps, as one text Jeff and the AI read.
+function caseText(clean, followups, answers) {
+  const lines = (followups || []).filter((q) => answers[q.id] != null).map((q) => {
+    const o = (q.options || []).find((x) => x.value === answers[q.id]);
+    return `- ${q.text} ${o ? o.label : answers[q.id]}`;
+  });
+  return lines.length ? `${clean}\n\n${lines.join("\n")}` : clean;
+}
+
+// Step 2: Jeff decides. Fast: no AI writing here.
+async function judge({ market = "jp", text = "", category = "other", answers = {}, followups = [], consent = false, aiCategory = null, jeffCategory = null }) {
   const m = MARKETS[market] ? market : "jp";
   const mk = MARKETS[m];
   const lang = mk.lang;
-  const copy = COPY[lang];
   const cat = categoryById(category);
+  const ct = caseType(cat.id);
   const clean = redact(text);
-  let out;
+  const full = caseText(clean, followups, answers);
+  const decisions = decisionsFor(cat.id);
 
+  const t0 = Date.now();
+  let raw = await jeffJudge(full, decisions);
+  const source = raw ? "jeff" : "ai";
+  if (!raw) raw = await aiJudge(full, decisions);
+  const seconds = Math.max(0.1, Math.round((Date.now() - t0) / 100) / 10);
+  const d = raw.decisions || {};
+
+  const need = d.need || { value: "consult", confidence: 0.5 };
+  const outlook = d.outlook || { probabilities: { good: 0.5 } };
+  const factors = ct.factors.map((f) => {
+    const r = d["f_" + f.id] || { value: "yes", probabilities: { yes: 0.5 } };
+    return { id: f.id, label: f.label[lang], ok: r.value === "yes", pct: Math.round((r.probabilities?.[r.value] ?? r.confidence ?? 0.5) * 100) };
+  });
+  const urgency = raw.urgency;
+  const urgencyLevel = urgency == null ? null : urgency >= 0.66 ? 2 : urgency >= 0.33 ? 1 : 0;
+
+  // Money at stake: the lawyer pack's table when there is one, otherwise the person's own amount band.
+  let money = null, band = null, packOut = null;
   if (cat.deepPack) {
     const pack = await loadPack(m, cat.deepPack);
-    const r = await runCheck(pack, { ...answers, story: clean });
-    out = {
-      deep: true, level: r.judgment.recommendation, headline: r.headline,
-      atStake: r.value?.text || "", range: r.range ? { ...r.range, label: r.rangeLabel + "（" + r.range.label + "）" } : null,
-      reasons: r.reasons, warnings: r.warnings, nextStep: r.nextStep,
-      cost: r.cost || mk.cost, supervision: r.supervision, disclaimer: r.disclaimer, draft: pack.meta.status !== "approved",
-    };
-  } else {
-    const r = await lightReport(clean, lang, cat.id, answers);
-    out = {
-      deep: false, level: r.level, headline: copy.levels[r.level],
-      atStake: r.at_stake, range: null, reasons: (r.key_points || []).slice(0, 3),
-      warnings: (r.warnings || []).slice(0, 2).map((t) => ({ level: "medium", text: t })),
-      nextStep: r.next_step, cost: mk.cost, supervision: mk.supervision, disclaimer: mk.disclaimer, draft: true,
-    };
+    packOut = await runCheck(pack, { ...answers, story: clean });
+    if (packOut.range) {
+      money = { text: `${packOut.range.min}〜${packOut.range.max}${packOut.range.unit}`, note: packOut.rangeLabel + "（" + packOut.range.label + "）" };
+      if (packOut.range.unit.includes("万円")) band = [packOut.range.min, packOut.range.max];
+    } else if (packOut.value?.text) money = { text: packOut.value.text, note: "" };
+  } else if (answers.amount) {
+    money = { text: answers.amount, note: "" };
   }
-  out.categoryLabel = cat[lang];
-  out.id = Math.random().toString(36).slice(2, 10);
+  const amountIndex = FOLLOWUPS[lang][0].options.indexOf(answers.amount);
+  const fee = estimateFee(m, cat.id, amountIndex >= 0 && amountIndex < 4 ? amountIndex : -1, band);
 
+  const out = {
+    id: Math.random().toString(36).slice(2, 10),
+    category: cat.id, categoryLabel: cat[lang], deep: !!cat.deepPack, source, seconds,
+    level: LEVEL[need.value] || "medium",
+    headline: COPY[lang].levels[LEVEL[need.value] || "medium"],
+    need: { value: need.value, pct: Math.round((need.confidence ?? 0.5) * 100) },
+    outlook: { pct: Math.round((outlook.probabilities?.good ?? 0.5) * 100), value: outlook.value || "mixed" },
+    factors, urgency: urgencyLevel,
+    money, fee, help: ct.help[lang],
+    free: mk.cost + (cat.id === "traffic" && m === "jp" ? "ご自身やご家族の自動車保険に「弁護士費用特約」があれば、費用の自己負担がないことも多いです。" : ""),
+    packWarnings: packOut?.warnings || [],
+    supervision: mk.supervision, disclaimer: mk.disclaimer, draft: true, mock: MOCK,
+  };
   if (consent) {
-    await log({ type: "check", id: out.id, market: m, category: cat.id, deep: out.deep, level: out.level,
-      answers, jeffCategory: jeff?.category ?? null, jeffConfidence: jeff?.confidence ?? null, mock: MOCK });
+    await log({ type: "check", id: out.id, market: m, category: cat.id, aiCategory, jeffCategory, source,
+      need: out.need, outlook: out.outlook.pct, factors: factors.map((f) => [f.id, f.ok]), urgency: urgencyLevel,
+      answers, seconds, mock: MOCK });
   }
   return out;
+}
+
+// Step 3: the AI explains Jeff's result in plain words. It may not change the verdict.
+async function explain({ market = "jp", text = "", answers = {}, followups = [], verdict = {} }) {
+  const m = MARKETS[market] ? market : "jp";
+  const lang = MARKETS[m].lang;
+  const full = caseText(redact(text), followups, answers);
+  const facts = {
+    problem: verdict.categoryLabel, lawyer_needed: verdict.need?.value, outlook_with_lawyer_pct: verdict.outlook?.pct,
+    strengths: (verdict.factors || []).filter((f) => f.ok).map((f) => f.label),
+    weaknesses: (verdict.factors || []).filter((f) => !f.ok).map((f) => f.label),
+    money: verdict.money?.text, typical_fee: verdict.fee?.text, fee_may_exceed_amount: !!verdict.fee?.small,
+  };
+  if (MOCK) return mockExplain(lang, facts);
+  try {
+    const out = await llmJSON(GUARDRAILS, `Jeff, our decision engine, already judged this case. Explain Jeff's result to the person in ${lang}.
+Do not change or contradict Jeff's judgment, and do not add any new percentage or probability.
+Jeff's result: ${JSON.stringify(facts)}
+The person's case: """${full}"""
+Return JSON:
+{"why": two short sentences on why Jeff judged it this way, naming their strongest and weakest points,
+ "steps": exactly 3 concrete things to do this week, short, most important first (keep evidence, what not to sign, who to contact),
+ "warnings": up to 2 short warnings only if clearly relevant (deadlines, signing, deleting evidence)}`);
+    STATUS.aiOk++;
+    return { why: String(out.why || ""), steps: (out.steps || []).slice(0, 3).map(String), warnings: (out.warnings || []).slice(0, 2).map(String) };
+  } catch (e) { aiFailed("explain", e); return mockExplain(lang, facts); }
+}
+
+function mockExplain(lang, f) {
+  const t = {
+    ja: { why: `強み：${f.strengths.join("・") || "—"}。弱み：${f.weaknesses.join("・") || "—"}。`, steps: ["証拠（書面・やりとり・写真）を保存する", "内容に納得するまで何にもサインしない", "無料相談で弁護士に確認する"] },
+    "zh-Hant": { why: `優勢：${f.strengths.join("・") || "—"}。弱點：${f.weaknesses.join("・") || "—"}。`, steps: ["保存證據（書面・對話・照片）", "確認前不要簽署任何文件", "利用免費諮詢向律師確認"] },
+    "zh-Hans": { why: `优势：${f.strengths.join("・") || "—"}。弱点：${f.weaknesses.join("・") || "—"}。`, steps: ["保存证据（书面・聊天记录・照片）", "确认前不要签署任何文件", "利用免费咨询向律师确认"] },
+  }[lang];
+  return { ...t, warnings: [] };
+}
+
+// Old single-call API (used by tests): judge + explain together.
+async function report(body) {
+  const verdict = await judge(body);
+  const ex = await explain({ ...body, verdict });
+  return { ...verdict, ...ex };
+}
+
+// "Have a lawyer review my case": records the request (no contact details are collected in the test).
+async function lawyerRequest({ id, market, category }) {
+  await log({ type: "lawyer_request", id, market, category });
+  return { ok: true };
 }
 
 async function feedback({ id, helpful, wanted }) {
@@ -296,7 +423,8 @@ async function status() {
     node: process.version, ...STATUS };
 }
 
-const ROUTES = { "/api/triage": triage, "/api/report": report, "/api/feedback": feedback, "/api/status": status };
+const ROUTES = { "/api/triage": triage, "/api/judge": judge, "/api/explain": explain, "/api/report": report,
+  "/api/request": lawyerRequest, "/api/feedback": feedback, "/api/status": status };
 
 export const server = http.createServer(async (req, res) => {
   try {
