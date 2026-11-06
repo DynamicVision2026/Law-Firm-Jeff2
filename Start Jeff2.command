@@ -19,6 +19,16 @@ fi
 set -a; . ./.env; set +a
 # Let Node use the same proxy/VPN settings as curl (HTTPS_PROXY etc.), if any are set
 export NODE_USE_ENV_PROXY=1
+# Give Node every certificate this Mac trusts (system + login keychain), so secure connections
+# work behind security software or a VPN that inspects HTTPS. Verification stays ON.
+mkdir -p data
+security find-certificate -a -p /System/Library/Keychains/SystemRootCertificates.keychain \
+  /Library/Keychains/System.keychain "$HOME/Library/Keychains/login.keychain-db" > data/mac-certs.pem 2>/dev/null
+[ -s data/mac-certs.pem ] && export NODE_EXTRA_CA_CERTS="$PWD/data/mac-certs.pem" SSL_CERT_FILE="$PWD/data/mac-certs.pem" \
+  REQUESTS_CA_BUNDLE="$PWD/data/mac-certs.pem"
+export UV_NATIVE_TLS=1  # uv uses the Mac's trusted certificates too
+# Accept JEFF_DIR with or without the leading slash
+[ -n "$JEFF_DIR" ] && [ "${JEFF_DIR#/}" = "$JEFF_DIR" ] && JEFF_DIR="/$JEFF_DIR"
 PORT="${PORT:-8000}"
 BRIDGE_PID=""
 
