@@ -107,6 +107,7 @@ async function classifyLLM(text, lang) {
     GUARDRAILS,
     `Classify this person's problem.
 Categories: ${CATEGORY_IDS.join(", ")}
+Notes: anything that started with a traffic accident is "traffic", even if the dispute is now with an insurer; "insurance" is only for non-accident claims. Renting and deposits are "housing", not "consumer".
 Return JSON: {"category": one id, "urgency": "urgent" if a deadline, court papers, a signature request, dismissal, arrest or danger is mentioned else "normal", "summary": one neutral sentence in ${lang} restating the problem without names}
 Problem: """${text}"""`
   );
