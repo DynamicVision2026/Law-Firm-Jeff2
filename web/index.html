@@ -83,6 +83,7 @@
   .attach { margin-top: 10px; }
   .attachbtn { display: inline-block; border-style: solid; }
   #attachmsg.kind { background: var(--accent-soft); color: var(--ink); border-radius: 8px; padding: 8px 10px; font-size: 13px !important; }
+  .topnav { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
   .summary { border: 2px solid var(--accent); }
   .summary dl { margin: 0; display: grid; gap: 4px; }
   .summary dt { font-size: 13px; color: var(--muted); margin-top: 8px; display: flex; align-items: center; gap: 6px; }
@@ -240,21 +241,22 @@ async function submitText() {
   thinking();
   try {
     S.triage = await api("/api/triage", { market: S.market, text: S.text });
-    S.answers = {}; S.step = 0;
+    S.answers = { ...(S.triage.known || {}) }; S.known = new Set(Object.keys(S.triage.known || {})); S.step = 0;
     renderFollowup();
   } catch { fail(); }
 }
 
 // ---------- screen 2: follow-up questions, one per screen ----------
 const visible = () => S.triage.followups.filter((q) => !q.show_if || matches(q.show_if, S.answers));
+const toAsk = () => visible().filter((q) => !S.known?.has(q.id)); // already answered in the description: not asked again
 function renderFollowup() {
-  const c = t(), qs = visible();
+  const c = t(), qs = toAsk();
   if (S.step >= qs.length) return getReport();
   const q = qs[S.step];
   app.innerHTML = `
     <span class="detected">${esc(c.detected)}：${esc(S.triage.categoryLabel)}</span>
     <div class="progress"><div style="width:${(S.step / qs.length) * 100}%"></div></div>
-    <p class="muted">${esc(c.step(S.step + 1, qs.length))}</p>
+    <p class="muted">${esc(c.step(S.step + 1, qs.length))}${S.known?.size ? `　${esc(c.knownNote(S.known.size))}` : ""}</p>
     <div class="card"><p class="q">${esc(q.text)}</p>${q.help ? `<p class="muted">${esc(q.help)}</p>` : ""}
       <div class="opts">${q.options.map((o) => `<button class="opt ${S.answers[q.id] === o.value ? "sel" : ""}" data-v="${esc(o.value)}">${esc(o.label)}</button>`).join("")}</div>
       <div class="row"><button class="back" id="back">← ${esc(c.back)}</button></div></div>
@@ -263,7 +265,7 @@ function renderFollowup() {
     S.answers[q.id] = b.dataset.v;
     // drop answers to questions that are now hidden
     const ids = new Set(visible().map((x) => x.id));
-    for (const k of Object.keys(S.answers)) if (!ids.has(k)) delete S.answers[k];
+    for (const k of Object.keys(S.answers)) if (!ids.has(k) && !S.known?.has(k)) delete S.answers[k];
     S.step++; renderFollowup();
   });
   app.querySelector("#back").onclick = () => { if (S.step) { S.step--; renderFollowup(); } else renderStart(); };
@@ -304,7 +306,8 @@ function renderResult() {
   const c = t(), R = c.r, r = S.result;
   const pcls = (p) => (p >= 60 ? "good" : p >= 35 ? "mid" : "weak");
   const outCls = r.outlook.pct >= 60 ? "good" : r.outlook.pct >= 35 ? "mid" : "weak";
-  let h = `<span class="detected">${esc(c.detected)}：${esc(r.categoryLabel)}</span>`;
+  let h = `<div class="topnav"><button class="back" id="editAns">← ${esc(c.editAnswers)}</button><button class="back" id="editText">✎ ${esc(c.editText)}</button></div>
+  <span class="detected">${esc(c.detected)}：${esc(r.categoryLabel)}</span>`;
 
   // 0. the five answers at a glance, with the lawyer button
   const okN = r.factors.filter((f) => f.ok).length;
@@ -359,6 +362,9 @@ function renderResult() {
   app.innerHTML = h;
   window.scrollTo({ top: 0, behavior: "smooth" });
   app.querySelector("#re").onclick = () => reset();
+  // Change answers: show every question (also the ones filled from the description), starting at the last one.
+  app.querySelector("#editAns").onclick = () => { S.known = new Set(); S.step = Math.max(0, visible().length - 1); renderFollowup(); };
+  app.querySelector("#editText").onclick = () => { S.guided = false; renderStart(); };
   app.querySelector("#reqbtn").onclick = () => {
     api("/api/request", { id: r.id, market: S.market, category: r.category }).catch(() => {});
     app.querySelector("#req").innerHTML = `<p class="center" style="margin:0">✓ ${esc(R.requestDone)}</p>`;

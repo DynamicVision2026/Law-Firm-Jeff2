@@ -303,11 +303,35 @@ async function triage({ market = "jp", text = "" }) {
       .map((q) => ({ id: q.id, text: q.text, options: q.options.map((o) => ({ value: o, label: o })) }));
     followups = [...own, ...shared];
   }
+  const known = await prefill(clean, followups);
   return {
     market: m, category: cat.id, categoryLabel: cat[lang], categoryBy: useJeff ? "quick" : "ai",
-    aiCategory: cls.category, urgency: cls.urgency, summary: cls.summary || "", deep, followups, mock: MOCK,
+    aiCategory: cls.category, urgency: cls.urgency, summary: cls.summary || "", deep, followups, known, mock: MOCK,
     quick: jeff ? { category: jeff.category, confidence: jeff.confidence } : null,
   };
+}
+
+// Answers the person already gave in their description (typed, guided or from documents), so we don't ask again.
+// Only filled when the description clearly says it; otherwise the question is asked.
+async function prefill(text, followups) {
+  if (MOCK || !followups.length) return {};
+  try {
+    const spec = followups.map((q) => `"${q.id}": ${q.text} options: ${JSON.stringify(q.options.map((o) => o.value))}`).join("\n");
+    const out = await llmJSON(GUARDRAILS, `Here is a person's description of their problem and a list of multiple-choice questions.
+For each question, if the description clearly and directly answers it, give the exactly matching option; otherwise null.
+Do not guess or infer: when in doubt, null.
+Questions:
+${spec}
+Description: """${text}"""
+Return JSON: {"<question id>": "<option exactly as written>" or null, ...}`);
+    STATUS.aiOk++;
+    const known = {};
+    for (const q of followups) {
+      const v = out[q.id];
+      if (v != null && q.options.some((o) => o.value === v)) known[q.id] = v;
+    }
+    return known;
+  } catch (e) { aiFailed("prefill", e); return {}; }
 }
 
 // The person's story plus their taps, as one text Jeff and the AI read.
@@ -453,7 +477,7 @@ Then answer with JSON only:
 {"pct": rough share (0-100) of such cases where the individual got all or part of what they claimed, or null if the sources give no basis,
  "typical": short phrase in ${lang} on typical amount or result, or null,
  "basis": one sentence in ${lang} saying what the estimate is based on (e.g. "court statistics 2023", "several law firm articles"),
- "confidence": "low" or "medium"}`;
+ "confidence": "medium" only if the figure comes from statistics or several sources about this same kind of case for ordinary individuals; otherwise "low"}`;
   try {
     let messages = [{ role: "user", content: prompt }], data;
     for (let turn = 0; turn < 3; turn++) {
@@ -483,7 +507,9 @@ Then answer with JSON only:
       for (const r of blk.content.slice(0, 3)) if (r.url && !sources.some((s) => s.url === r.url)) sources.push({ url: r.url, title: r.title || r.url });
     }
     STATUS.aiOk++;
-    const pct = Number.isFinite(Number(out.pct)) && out.pct !== null ? Math.max(0, Math.min(100, Math.round(Number(out.pct)))) : null;
+    // Show a percentage only when the search itself rates its sources as solid; otherwise just the typical outcome.
+    const solid = out.confidence === "medium";
+    const pct = solid && Number.isFinite(Number(out.pct)) && out.pct !== null ? Math.max(0, Math.min(100, Math.round(Number(out.pct)))) : null;
     if (pct == null && !out.typical) return null;
     return { pct, typical: out.typical || null, basis: String(out.basis || ""), confidence: out.confidence === "medium" ? "medium" : "low", sources: sources.slice(0, 4) };
   } catch (e) { aiFailed("web search", e); return null; }
