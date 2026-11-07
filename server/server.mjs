@@ -360,34 +360,41 @@ async function explain({ market = "jp", text = "", answers = {}, followups = [],
   const m = MARKETS[market] ? market : "jp";
   const lang = MARKETS[m].lang;
   const full = caseText(redact(text), followups, answers);
+  const NEED_EN = { now: "see a lawyer now", consult: "worth a free consultation with a lawyer", self: "can likely handle it alone" };
   const facts = {
-    problem: verdict.categoryLabel, lawyer_needed: verdict.need?.value, outlook_with_lawyer_pct: verdict.outlook?.pct,
-    strengths: (verdict.factors || []).filter((f) => f.ok).map((f) => f.label),
-    weaknesses: (verdict.factors || []).filter((f) => !f.ok).map((f) => f.label),
+    problem: verdict.categoryLabel,
+    lawyer_needed: NEED_EN[verdict.need?.value] || verdict.need?.value,
+    outlook_good_result_with_lawyer_pct: verdict.outlook?.pct,
+    checks: (verdict.factors || []).map((f) => ({ id: f.id, check: f.label, result: f.ok ? "yes (strength)" : "no (weak point)" })),
     money: verdict.money?.text, typical_fee: verdict.fee?.text, fee_may_exceed_amount: !!verdict.fee?.small,
   };
-  if (MOCK) return mockExplain(lang, facts);
+  if (MOCK) return mockExplain(lang, verdict);
   try {
-    const out = await llmJSON(GUARDRAILS, `Jeff, our decision engine, already judged this case. Explain Jeff's result to the person in ${lang}.
-Do not change or contradict Jeff's judgment, and do not add any new percentage or probability.
-Jeff's result: ${JSON.stringify(facts)}
+    const out = await llmJSON(GUARDRAILS, `Jeff, our decision engine, already judged this case. Your only job: tell the person, in ${lang}, the reason for each of Jeff's results.
+Rules: base every reason on what the person actually wrote or tapped (quote their facts briefly); never change or contradict Jeff's result;
+never add a new percentage or probability; if their description gives no information for a result, say what information is missing.
+Jeff's results: ${JSON.stringify(facts)}
 The person's case: """${full}"""
 Return JSON:
-{"why": two short sentences on why Jeff judged it this way, naming their strongest and weakest points,
- "steps": exactly 3 concrete things to do this week, short, most important first (keep evidence, what not to sign, who to contact),
- "warnings": up to 2 short warnings only if clearly relevant (deadlines, signing, deleting evidence)}`);
+{"need": one or two sentences: why Jeff judged "${facts.lawyer_needed}",
+ "outlook": one or two sentences: which of their facts raise and which lower the outlook of ${facts.outlook_good_result_with_lawyer_pct}%,
+ "checks": {${facts.checks.map((c) => `"${c.id}": one short sentence why this check is ${c.result.split(" ")[0]}`).join(", ")}},
+ "steps": exactly 3 short things to do this week that would improve the weak points, most important first}`);
     STATUS.aiOk++;
-    return { why: String(out.why || ""), steps: (out.steps || []).slice(0, 3).map(String), warnings: (out.warnings || []).slice(0, 2).map(String) };
-  } catch (e) { aiFailed("explain", e); return mockExplain(lang, facts); }
+    const checks = {};
+    for (const c of facts.checks) checks[c.id] = String(out.checks?.[c.id] || "");
+    return { reasons: { need: String(out.need || ""), outlook: String(out.outlook || ""), checks }, steps: (out.steps || []).slice(0, 3).map(String) };
+  } catch (e) { aiFailed("explain", e); return mockExplain(lang, verdict); }
 }
 
-function mockExplain(lang, f) {
+function mockExplain(lang, v) {
   const t = {
-    ja: { why: `強み：${f.strengths.join("・") || "—"}。弱み：${f.weaknesses.join("・") || "—"}。`, steps: ["証拠（書面・やりとり・写真）を保存する", "内容に納得するまで何にもサインしない", "無料相談で弁護士に確認する"] },
-    "zh-Hant": { why: `優勢：${f.strengths.join("・") || "—"}。弱點：${f.weaknesses.join("・") || "—"}。`, steps: ["保存證據（書面・對話・照片）", "確認前不要簽署任何文件", "利用免費諮詢向律師確認"] },
-    "zh-Hans": { why: `优势：${f.strengths.join("・") || "—"}。弱点：${f.weaknesses.join("・") || "—"}。`, steps: ["保存证据（书面・聊天记录・照片）", "确认前不要签署任何文件", "利用免费咨询向律师确认"] },
+    ja: { need: "記載された内容と回答から判定しました。", ok: "回答からこの点は満たしていると判断しました。", ng: "回答からはこの点が確認できませんでした。", steps: ["証拠（書面・やりとり・写真）を保存する", "内容に納得するまで何にもサインしない", "無料相談で弁護士に確認する"] },
+    "zh-Hant": { need: "依您填寫的內容與回答判斷。", ok: "依您的回答，這一點成立。", ng: "從您的回答無法確認這一點。", steps: ["保存證據（書面・對話・照片）", "確認前不要簽署任何文件", "利用免費諮詢向律師確認"] },
+    "zh-Hans": { need: "根据您填写的内容与回答判断。", ok: "根据您的回答，这一点成立。", ng: "从您的回答无法确认这一点。", steps: ["保存证据（书面・聊天记录・照片）", "确认前不要签署任何文件", "利用免费咨询向律师确认"] },
   }[lang];
-  return { ...t, warnings: [] };
+  const checks = Object.fromEntries((v.factors || []).map((f) => [f.id, f.ok ? t.ok : t.ng]));
+  return { reasons: { need: t.need, outlook: t.need, checks }, steps: t.steps };
 }
 
 // Old single-call API (used by tests): judge + explain together.

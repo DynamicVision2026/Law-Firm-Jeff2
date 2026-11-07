@@ -19,7 +19,7 @@ for (const [market, text] of [["jp", "友人に50万円を貸したが返して�
   assert.equal(t.category, "money_owed"); assert.equal(t.deep, false); assert.equal(t.followups.length, 6); // 2 own + 4 shared
   const answers = Object.fromEntries(t.followups.map((q) => [q.id, q.options[1].value]));
   const r = await post("/api/report", { market, text, category: t.category, answers, followups: t.followups, consent: true });
-  assert.ok(r.headline && r.fee.text && r.free && r.help && r.why && r.steps.length === 3);
+  assert.ok(r.headline && r.fee.text && r.free && r.help && r.reasons.need && Object.keys(r.reasons.checks).length === 3 && r.steps.length === 3);
   assert.equal(r.factors.length, 3); assert.ok(r.outlook.pct >= 0 && r.outlook.pct <= 100);
   console.log(market, "money_owed ok |", r.headline, "|", r.fee.text.slice(0, 40), r.fee.small ? "(small)" : "");
 }

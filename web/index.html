@@ -71,6 +71,10 @@
   .factors li { display: flex; gap: 8px; align-items: flex-start; }
   .factors li span { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 800; color: #fff; margin-top: 2px; }
   .factors li.ok span { background: var(--low); } .factors li.ng span { background: var(--mid); }
+  .why { margin: 4px 0 0; font-size: 14px; color: var(--muted); line-height: 1.55; }
+  .why:not(.on)::after { content: "…"; }
+  .why.on { color: var(--ink); background: var(--bg); border-radius: 8px; padding: 6px 10px; }
+  .factors li > div { flex: 1; min-width: 0; }
   .fine { font-size: 12px; color: var(--muted); margin: 12px 0 0; }
   .steps { margin: 0; padding-left: 22px; display: grid; gap: 4px; }
   .cta { background: var(--accent-soft); border-color: var(--accent); }
@@ -230,12 +234,12 @@ function renderResult() {
     <div class="jeffhead"><b>${esc(R.jeffTitle)}</b><span class="muted">${esc(R.jeffSpeed(r.seconds))}</span></div>
     ${r.source === "ai" ? `<p class="muted" style="margin:0">${esc(R.byAI)}</p>` : ""}
     <p class="muted" style="margin:10px 0 2px">${esc(R.needQ)}</p>
-    <p class="headline lvl-${r.level}" style="margin:0">${esc(R.need[r.need.value] || "")} <span class="pct">${r.need.pct}%</span></p>
+    <p class="headline lvl-${r.level}" style="margin:0">${esc(R.need[r.need.value] || "")} <span class="pct">${r.need.pct}%</span></p><p class="why" data-why="need"></p>
     <p class="muted" style="margin:12px 0 2px">${esc(R.outlookQ)}</p>
-    <div class="outrow"><span class="big ${outCls}">${r.outlook.pct}%</span>${bar(r.outlook.pct, outCls)}</div>
+    <div class="outrow"><span class="big ${outCls}">${r.outlook.pct}%</span>${bar(r.outlook.pct, outCls)}</div><p class="why" data-why="outlook"></p>
     ${r.urgency != null ? `<p style="margin:10px 0 0">${esc(R.urgency)}：<b class="lvl-${["low", "medium", "high"][r.urgency]}">${esc(R.urg[r.urgency])}</b></p>` : ""}
     <h3>${esc(R.factors)}</h3>
-    <ul class="factors">${r.factors.map((f) => `<li class="${f.ok ? "ok" : "ng"}"><span>${f.ok ? "✓" : "!"}</span>${esc(f.label)}</li>`).join("")}</ul>
+    <ul class="factors">${r.factors.map((f) => `<li class="${f.ok ? "ok" : "ng"}"><span>${f.ok ? "✓" : "!"}</span><div>${esc(f.label)}<p class="why" data-why="c_${esc(f.id)}"></p></div></li>`).join("")}</ul>
     <p class="fine">${esc(R.outlookNote)}</p>
   </div>`;
 
@@ -248,7 +252,7 @@ function renderResult() {
   h += `<h3>${esc(R.free)}</h3><p class="muted">${esc(r.free)}</p></div>`;
 
   // 3. the AI's explanation (arrives a few seconds later)
-  h += `<div class="card" id="explain"><div class="spinner" style="margin:6px auto"></div><p class="center muted">${esc(R.explaining)}</p></div>`;
+  h += `<div class="card" id="explain"><p class="center muted" style="margin:0">${esc(R.explaining)}</p></div>`;
 
   // 4. lawyer review — the moment the person shares their case
   h += `<div class="card cta" id="req"><p class="q" style="margin-top:0">${esc(R.requestTitle)}</p><p class="muted">${esc(R.requestText)}</p>
@@ -281,10 +285,14 @@ function renderExplain(e) {
   const box = app.querySelector("#explain");
   if (!box) return;
   const R = t().r, r = S.result;
-  const warns = [...(e?.warnings || []).map((w) => ({ level: "medium", text: w })), ...(r.packWarnings || [])].slice(0, 3);
+  app.querySelectorAll("[data-why]").forEach((p) => {
+    const k = p.dataset.why;
+    const txt = !e ? "" : k === "need" ? e.reasons.need : k === "outlook" ? e.reasons.outlook : e.reasons.checks[k.slice(2)];
+    if (txt) { p.textContent = txt; p.classList.add("on"); } else p.remove();
+  });
   if (!e) { box.remove(); return; }
-  box.innerHTML = `<h3 style="margin-top:0">${esc(R.why)}</h3><p>${esc(e.why)}</p>
-    <h3>${esc(R.steps)}</h3><ol class="steps">${e.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>
+  const warns = (r.packWarnings || []).slice(0, 2);
+  box.innerHTML = `<h3 style="margin-top:0">${esc(R.steps)}</h3><ol class="steps">${e.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>
     ${warns.length ? `<h3>${esc(R.warnings)}</h3>${warns.map((w) => `<div class="warn ${esc(w.level)}">${esc(w.text)}</div>`).join("")}` : ""}`;
 }
 
