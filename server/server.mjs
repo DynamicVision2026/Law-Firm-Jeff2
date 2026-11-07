@@ -440,7 +440,7 @@ response, deadlines, and the free or low-cost routes a person can use alone (for
 procedures, consumer complaint channels, legal-aid hotlines). "On their own" must reflect what those free routes realistically
 achieve without a lawyer; "with a lawyer" must not be lower than "on their own". These are rough, honest estimates, not court
 win rates: keep them moderate unless the facts are clearly very strong or very weak.
-Rules: never mention "Jeff", any engine, model or AI by name — call it "this check" if needed; base every reason on what the
+Rules: write every sentence entirely in ${lang} (no English words); never mention "Jeff", any engine, model or AI by name — call it "this check" if needed; base every reason on what the
 person actually wrote or tapped (quote their facts briefly); keep the engine's need-a-lawyer result and the checks as they are;
 if their description gives no information for something, say what information is missing.
 Engine results: ${JSON.stringify(facts)}
