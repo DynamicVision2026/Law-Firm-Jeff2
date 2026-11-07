@@ -495,20 +495,26 @@ async function readDocs({ market = "jp", files = [] }) {
   const lang = MARKETS[m].lang;
   const ok = (files || []).filter((f) => DOC_TYPES.includes(f.type) && typeof f.data === "string").slice(0, 5);
   if (!ok.length) return { summary: "", count: 0 };
-  if (MOCK) return { summary: { ja: "（テストモード：書類の要約がここに入ります）", "zh-Hant": "（測試模式：文件摘要會顯示在這裡）", "zh-Hans": "（测试模式：文件摘要会显示在这里）" }[lang], count: ok.length };
+  if (MOCK) return { summary: { ja: "（テストモード：書類の要約がここに入ります）", "zh-Hant": "（測試模式：文件摘要會顯示在這裡）", "zh-Hans": "（测试模式：文件摘要会显示在这里）" }[lang], count: ok.length, used: ok.length, skipped: 0 };
   const blocks = ok.map((f) => f.type === "application/pdf"
     ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: f.data } }
     : { type: "image", source: { type: "base64", media_type: f.type, data: f.data } });
   try {
-    const out = await llmJSON(GUARDRAILS, [...blocks, { type: "text", text: `These are documents a person uploaded about their legal problem
-(for example a contract, a letter or notice, a receipt or transfer record, or chat screenshots).
-Write, in ${lang}, a short factual summary of what they show that matters for the problem: what each document is, dates,
-amounts, deadlines, what was promised or demanded, signatures. Never write personal names, addresses, phone numbers or ID
-numbers — say "相手方/对方/the other party", "本人/我" instead. If a document is unreadable or unrelated, say so briefly.
-Return JSON: {"summary": "at most 6 short lines, each starting with ・"}` }]);
+    const out = await llmJSON(GUARDRAILS, [...blocks, { type: "text", text: `A person uploaded these ${ok.length} files (in order) to a free legal pre-check about their own problem.
+First decide for each file whether it is related to a legal problem: related = a contract, letter, notice, invoice, receipt,
+transfer or bank record, court or police paper, medical certificate, chat or email screenshot about a dispute, or a photo
+showing damage, injury, an accident scene or the condition of a room or item. Unrelated = selfies, people, scenery, food,
+memes, ads, blank or unreadable images, or screenshots with nothing to do with a dispute.
+Do not describe unrelated files at all.
+Then, using only the related files, write in ${lang} a short factual summary of what matters for the problem: what each
+document is, dates, amounts, deadlines, what was promised or demanded, signatures. Never write personal names, addresses,
+phone numbers or ID numbers — say "相手方/对方/the other party", "本人/我" instead.
+Return JSON: {"related": [true or false for each file, in order], "summary": "at most 6 short lines, each starting with ・, or empty if no file is related"}` }]);
     STATUS.aiOk++;
-    return { summary: redact(String(out.summary || "")).slice(0, 800), count: ok.length };
-  } catch (e) { aiFailed("docs", e); return { summary: "", count: ok.length, error: true }; }
+    const related = ok.map((_, i) => out.related?.[i] !== false);
+    const used = related.filter(Boolean).length;
+    return { summary: used ? redact(String(out.summary || "")).slice(0, 800) : "", count: ok.length, used, skipped: ok.length - used };
+  } catch (e) { aiFailed("docs", e); return { summary: "", count: ok.length, used: 0, skipped: 0, error: true }; }
 }
 
 // Old single-call API (used by tests): judge + explain together.

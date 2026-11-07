@@ -82,6 +82,7 @@
   .vs .lab { font-size: 14px; } .vs .big { font-size: 26px; }
   .attach { margin-top: 10px; }
   .attachbtn { display: inline-block; border-style: solid; }
+  #attachmsg.kind { background: var(--accent-soft); color: var(--ink); border-radius: 8px; padding: 8px 10px; font-size: 13px !important; }
   .summary { border: 2px solid var(--accent); }
   .summary dl { margin: 0; display: grid; gap: 4px; }
   .summary dt { font-size: 13px; color: var(--muted); margin-top: 8px; display: flex; align-items: center; gap: 6px; }
@@ -186,9 +187,13 @@ async function attachFiles(list, ta, sync) {
   try {
     const files = await Promise.all(picked.map((f) => (f.type === "application/pdf" ? readPdf(f) : shrinkImage(f))));
     const r = await api("/api/docs", { market: S.market, files });
-    if (!r.summary) throw new Error("empty");
-    ta.value = (ta.value.trim() ? ta.value.trim() + "\n\n" : "") + c.attachHeader + "\n" + r.summary;
-    msg.textContent = c.attachDone(r.count);
+    if (r.error) throw new Error("failed");
+    if (!r.used || !r.summary) { msg.textContent = c.attachRejected; msg.classList.add("kind"); }
+    else {
+      ta.value = (ta.value.trim() ? ta.value.trim() + "\n\n" : "") + c.attachHeader + "\n" + r.summary;
+      msg.textContent = c.attachDone(r.used) + (r.skipped ? " " + c.attachSkipped(r.skipped) : "");
+      msg.classList.remove("kind");
+    }
   } catch { msg.textContent = c.attachError; }
   app.querySelector("#files").value = "";
   sync();

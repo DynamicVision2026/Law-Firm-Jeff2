@@ -9,7 +9,9 @@ export const COPY = {
     noNames: "お名前・住所・電話番号は書かないでください。",
     attach: "📎 書類・写真を追加（任意）", attachNote: "契約書、届いた通知、LINEのスクショ、振込記録など。最大5件。ファイルは保存されず、要約だけを使います。",
     attachReading: "書類を読んでいます…", attachDone: (n) => `${n}件の書類から内容を追加しました。確認・修正できます。`, attachError: "読み取れませんでした。写真をもう一度撮るか、文章で書いてください。",
-    attachHeader: "【添付書類より】", attachTooBig: "ファイルが大きすぎます（PDFは8MBまで）。",
+    attachHeader: "【添付書類より】",
+    attachRejected: "ありがとうございます。ただ、追加された写真・書類はご相談の内容と関係がないようなので、使用しませんでした。契約書、届いた通知、やりとりのスクリーンショット、振込記録など、問題に関係するものがあれば追加してください。",
+    attachSkipped: (n) => `（関係のなさそうな${n}件は使用しませんでした）`, attachTooBig: "ファイルが大きすぎます（PDFは8MBまで）。",
     guideTitle: "書き方のヒント（タップすると書き出しが入ります）",
     guides: [
       { label: "相手は誰？", insert: "相手は（例：友人／会社／保険会社）で、" },
@@ -81,7 +83,9 @@ export const COPY = {
     noNames: "請勿填寫姓名、地址或電話。",
     attach: "📎 加入文件・照片（可選）", attachNote: "合約、收到的通知、LINE 截圖、轉帳紀錄等，最多 5 個。檔案不會保存，只使用摘要。",
     attachReading: "正在讀取文件…", attachDone: (n) => `已從 ${n} 個文件加入內容，您可以確認或修改。`, attachError: "無法讀取，請重新拍照或直接用文字描述。",
-    attachHeader: "【附件內容】", attachTooBig: "檔案太大（PDF 上限 8MB）。",
+    attachHeader: "【附件內容】",
+    attachRejected: "謝謝您。不過，您加入的照片或文件似乎與這次諮詢的問題無關，因此沒有使用。如果有合約、收到的通知、對話截圖或轉帳紀錄等相關資料，歡迎再加入。",
+    attachSkipped: (n) => `（有 ${n} 個看起來無關的檔案未使用）`, attachTooBig: "檔案太大（PDF 上限 8MB）。",
     guideTitle: "書寫提示（點選即可插入開頭）",
     guides: [
       { label: "對方是誰？", insert: "對方是（例：朋友／公司／保險公司），" },
@@ -153,7 +157,9 @@ export const COPY = {
     noNames: "请勿填写姓名、地址或电话。",
     attach: "📎 添加文件・照片（可选）", attachNote: "合同、收到的通知、微信截图、转账记录等，最多 5 个。文件不会保存，只使用摘要。",
     attachReading: "正在读取文件…", attachDone: (n) => `已从 ${n} 个文件添加内容，您可以确认或修改。`, attachError: "无法读取，请重新拍照或直接用文字描述。",
-    attachHeader: "【附件内容】", attachTooBig: "文件太大（PDF 上限 8MB）。",
+    attachHeader: "【附件内容】",
+    attachRejected: "谢谢您。不过，您添加的照片或文件似乎与这次咨询的问题无关，因此没有使用。如果有合同、收到的通知、聊天截图或转账记录等相关材料，欢迎再添加。",
+    attachSkipped: (n) => `（有 ${n} 个看起来无关的文件未使用）`, attachTooBig: "文件太大（PDF 上限 8MB）。",
     guideTitle: "填写提示（点击即可插入开头）",
     guides: [
       { label: "对方是谁？", insert: "对方是（例：朋友／公司／保险公司），" },
