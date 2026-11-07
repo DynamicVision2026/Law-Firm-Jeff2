@@ -220,6 +220,8 @@ async function getReport() {
       consent: S.consent, aiCategory: S.triage.aiCategory, jeffCategory: S.triage.jeff?.category ?? null,
     });
     renderResult();
+    if (!S.result.similar) api("/api/similar", { market: S.market, category: S.result.category, verdict: S.result })
+      .then(renderWeb).catch(() => renderWeb(null));
     api("/api/explain", { market: S.market, text: S.text, answers: S.answers, followups: visible(), verdict: S.result })
       .then(renderExplain).catch(() => renderExplain(null));
   } catch { fail(); }
@@ -255,7 +257,7 @@ function renderResult() {
     <p class="muted" style="margin:12px 0 2px">${esc(R.outlookQ)}</p>
     <div class="outrow"><span class="big ${outCls}">${r.outlook.pct}%</span>${bar(r.outlook.pct, outCls)}</div><p class="why" data-why="outlook"></p>
     ${r.urgency != null ? `<p style="margin:10px 0 0">${esc(R.urgency)}：<b class="lvl-${["low", "medium", "high"][r.urgency]}">${esc(R.urg[r.urgency])}</b></p>` : ""}
-    ${similarBlock(r.similar, R)}
+    ${r.similar ? similarBlock(r.similar, R) : `<div class="similar" id="web"><p class="muted" style="margin:0">${esc(R.webSearching)}</p></div>`}
     <h3>${esc(R.factors)}</h3>
     <ul class="factors">${r.factors.map((f) => `<li class="${f.ok ? "ok" : "ng"}"><span>${f.ok ? "✓" : "!"}</span><div>${esc(f.label)}<p class="why" data-why="c_${esc(f.id)}"></p></div></li>`).join("")}</ul>
     <p class="fine">${esc(R.outlookNote)}</p>
@@ -297,6 +299,19 @@ function renderResult() {
       fb.innerHTML = `<p class="center">${esc(c.thanks)}</p>`;
     });
   });
+}
+
+function renderWeb(w) {
+  const box = app.querySelector("#web");
+  if (!box) return;
+  if (!w) return box.remove();
+  const R = t().r, cls = w.pct >= 60 ? "good" : w.pct >= 35 ? "mid" : "weak";
+  box.innerHTML = `<p style="margin:0 0 4px"><b>${esc(R.webTitle)}</b></p>
+    ${w.pct != null ? `<p class="muted" style="margin:6px 0 2px">${esc(R.webPct)}</p><div class="outrow"><span class="big ${cls}">≈${w.pct}%</span>${bar(w.pct, cls)}</div>` : ""}
+    ${w.typical ? `<p style="margin:8px 0 0">${esc(w.typical)}</p>` : ""}
+    ${w.basis ? `<p class="muted" style="margin:6px 0 0">${esc(w.basis)}</p>` : ""}
+    ${w.sources.length ? `<p class="fine" style="margin-top:6px">${esc(R.webSources)}：${w.sources.map((s) => `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title.slice(0, 40))}</a>`).join(" ・ ")}</p>` : ""}
+    <p class="fine">${esc(R.webNote)}</p>`;
 }
 
 function renderExplain(e) {

@@ -44,6 +44,8 @@ export const COPY = {
     thanks: "ご回答ありがとうございました。",
     r: {
       jeffTitle: "⚡ Jeffの即時チェック", jeffSpeed: (s) => `${s}秒で判定`,
+      webTitle: "🔎 似た事件の一般的な傾向（ネット上の公開情報からの概算）", webPct: "請求が全部または一部認められる目安",
+      webNote: "公開情報をもとにした大まかな目安です。正確な統計ではありません。", webSearching: "似た事件の傾向を調べています…", webSources: "参考",
       similarTitle: (n, y) => `📚 似た事件は裁判でどうなった？（公開判決 ${n}件${y ? `・${y[0]}〜${y[1]}年` : ""}）`,
       similarWin: "請求が全部または一部認められた割合", similarContested: (p) => `相手が争った事件に限ると ${p}%`,
       similarAward: (a, r) => `認められた金額の中央値：${a}円${r != null ? `（請求額の約${r}%）` : ""}`,
@@ -109,6 +111,8 @@ export const COPY = {
     thanks: "感謝您的回答。",
     r: {
       jeffTitle: "⚡ Jeff 即時判斷", jeffSpeed: (s) => `${s} 秒完成`,
+      webTitle: "🔎 類似案件的一般趨勢（依網路公開資訊的概估）", webPct: "請求全部或部分獲准的參考比例",
+      webNote: "依公開資訊所做的粗略參考，並非精確統計。", webSearching: "正在查詢類似案件的趨勢…", webSources: "參考來源",
       similarTitle: (n, y) => `📚 類似案件在法院的結果（公開判決 ${n} 件${y ? `・${y[0]}～${y[1]}年` : ""}）`,
       similarWin: "請求全部或部分獲准的比例", similarContested: (p) => `只看對方有出庭爭執的案件：${p}%`,
       similarAward: (a, r) => `判准金額中位數：新台幣 ${a} 元${r != null ? `（約為請求金額的 ${r}%）` : ""}`,
@@ -174,6 +178,8 @@ export const COPY = {
     thanks: "感谢您的回答。",
     r: {
       jeffTitle: "⚡ Jeff 即时判断", jeffSpeed: (s) => `${s} 秒完成`,
+      webTitle: "🔎 类似案件的一般趋势（根据网络公开信息的估算）", webPct: "请求全部或部分获支持的参考比例",
+      webNote: "根据公开信息所做的粗略参考，并非精确统计。", webSearching: "正在查询类似案件的趋势…", webSources: "参考来源",
       similarTitle: (n, y) => `📚 类似案件在法院的结果（公开判决 ${n} 件${y ? `・${y[0]}～${y[1]}年` : ""}）`,
       similarWin: "请求全部或部分获支持的比例", similarContested: (p) => `只看对方出庭抗辩的案件：${p}%`,
       similarAward: (a, r) => `判决金额中位数：${a} 元${r != null ? `（约为请求金额的 ${r}%）` : ""}`,

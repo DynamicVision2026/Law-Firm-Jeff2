@@ -29,6 +29,7 @@ const PORT = Number(process.env.PORT || 8000);
 const KEY = process.env.ANTHROPIC_API_KEY || "";
 const MODEL = process.env.LLM_MODEL || "claude-haiku-5-5";
 const JEFF_URL = process.env.JEFF_URL || "";
+const WEB_SEARCH = (process.env.WEB_SEARCH || "on") !== "off"; // rough "similar cases" estimate from public web info
 const LOG_FILE = process.env.LOG_FILE || join(ROOT, "data", "log.jsonl");
 const MOCK = !KEY;
 const SITE_PASSWORD = process.env.SITE_PASSWORD || ""; // when set, every page and API call needs it
@@ -418,6 +419,61 @@ function mockExplain(lang, v) {
   return { reasons: { need: t.need, outlook: t.need, checks }, steps: t.steps };
 }
 
+// Rough "how similar cases usually end", from a quick web search (until we license court databases).
+// Only general terms are searched — never the person's details. About 1–3 searches ($0.01–0.03) per check.
+const COUNTRY = { jp: { country: "JP", city: "Tokyo", timezone: "Asia/Tokyo", where: "Japan" },
+  tw: { country: "TW", city: "Taipei", timezone: "Asia/Taipei", where: "Taiwan" },
+  cn: { country: "CN", city: "Shanghai", timezone: "Asia/Shanghai", where: "mainland China" } };
+
+async function webSimilar({ market = "jp", category = "other", verdict = {} }) {
+  const m = MARKETS[market] ? market : "jp";
+  const lang = MARKETS[m].lang, loc = COUNTRY[m];
+  if (MOCK || !WEB_SEARCH || category === "other") return null;
+  const cat = categoryById(category);
+  const facts = (verdict.factors || []).map((f) => `${f.label}: ${f.ok ? "yes" : "no"}`).join("; ");
+  const prompt = `Search the web (in the local language of ${loc.where}) for how "${cat[lang]}" disputes (${category}) usually end for individuals in ${loc.where}:
+court statistics, judgment summaries, or law firm articles with outcome figures. Use only general terms in your searches — no personal details.
+Key facts of this case type to consider: ${facts || "none"}.
+Then answer with JSON only:
+{"pct": rough share (0-100) of such cases where the individual got all or part of what they claimed, or null if the sources give no basis,
+ "typical": short phrase in ${lang} on typical amount or result, or null,
+ "basis": one sentence in ${lang} saying what the estimate is based on (e.g. "court statistics 2023", "several law firm articles"),
+ "confidence": "low" or "medium"}`;
+  try {
+    let messages = [{ role: "user", content: prompt }], data;
+    for (let turn = 0; turn < 3; turn++) {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "x-api-key": KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+        body: JSON.stringify({ model: MODEL, max_tokens: 2500, messages,
+          tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3,
+            user_location: { type: "approximate", country: loc.country, city: loc.city, timezone: loc.timezone } }] }),
+        signal: AbortSignal.timeout(60000),
+      });
+      if (!res.ok) throw new Error(`LLM ${res.status}: ${(await res.text()).slice(0, 200)}`);
+      data = await res.json();
+      if (data.stop_reason !== "pause_turn") break;
+      messages = [...messages, { role: "assistant", content: data.content }];
+    }
+    const texts = (data.content || []).filter((b) => b.type === "text");
+    const text = texts.map((b) => b.text).join("");
+    const a = text.indexOf("{"), b = text.lastIndexOf("}");
+    if (a < 0 || b < a) throw new Error("web search reply had no JSON");
+    const out = JSON.parse(text.slice(a, b + 1));
+    const sources = [];
+    for (const blk of texts) for (const c of blk.citations || []) {
+      if (c.url && !sources.some((s) => s.url === c.url)) sources.push({ url: c.url, title: c.title || c.url });
+    }
+    if (!sources.length) for (const blk of data.content || []) if (blk.type === "web_search_tool_result" && Array.isArray(blk.content)) {
+      for (const r of blk.content.slice(0, 3)) if (r.url && !sources.some((s) => s.url === r.url)) sources.push({ url: r.url, title: r.title || r.url });
+    }
+    STATUS.aiOk++;
+    const pct = Number.isFinite(Number(out.pct)) && out.pct !== null ? Math.max(0, Math.min(100, Math.round(Number(out.pct)))) : null;
+    if (pct == null && !out.typical) return null;
+    return { pct, typical: out.typical || null, basis: String(out.basis || ""), confidence: out.confidence === "medium" ? "medium" : "low", sources: sources.slice(0, 4) };
+  } catch (e) { aiFailed("web search", e); return null; }
+}
+
 // Old single-call API (used by tests): judge + explain together.
 async function report(body) {
   const verdict = await judge(body);
@@ -446,13 +502,13 @@ async function log(rec) {
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".json": "application/json; charset=utf-8", ".css": "text/css" };
 async function status() {
   const proxy = process.env.HTTPS_PROXY || process.env.https_proxy || process.env.ALL_PROXY || process.env.all_proxy || "";
-  return { ai: MOCK ? "test mode (no key)" : MODEL, jeff: JEFF_URL || "off", password: !!SITE_PASSWORD,
+  return { ai: MOCK ? "test mode (no key)" : MODEL, jeff: JEFF_URL || "off", webSearch: WEB_SEARCH && !MOCK, password: !!SITE_PASSWORD,
     proxyEnv: proxy ? proxy.replace(/\/\/[^@]*@/, "//***@") : "none", nodeUsesProxy: process.env.NODE_USE_ENV_PROXY === "1",
     node: process.version, ...STATUS };
 }
 
 const ROUTES = { "/api/triage": triage, "/api/judge": judge, "/api/explain": explain, "/api/report": report,
-  "/api/request": lawyerRequest, "/api/feedback": feedback, "/api/status": status };
+  "/api/request": lawyerRequest, "/api/similar": webSimilar, "/api/feedback": feedback, "/api/status": status };
 
 export const server = http.createServer(async (req, res) => {
   try {
