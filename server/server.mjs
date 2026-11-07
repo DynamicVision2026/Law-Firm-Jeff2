@@ -50,7 +50,7 @@ function authorized(req) {
 // Remove contact details people type by accident. The free text itself is never stored.
 export function redact(text) {
   return String(text || "")
-    .slice(0, 1500)
+    .slice(0, 2500)
     .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "[email]")
     .replace(/https?:\/\/\S+/g, "[url]")
     .replace(/\+?\d[\d\s-]{8,}\d/g, "[number]")
@@ -304,8 +304,9 @@ async function triage({ market = "jp", text = "" }) {
     followups = [...own, ...shared];
   }
   return {
-    market: m, category: cat.id, categoryLabel: cat[lang], categoryBy: useJeff ? "jeff" : "ai",
-    aiCategory: cls.category, urgency: cls.urgency, summary: cls.summary || "", deep, followups, mock: MOCK, jeff,
+    market: m, category: cat.id, categoryLabel: cat[lang], categoryBy: useJeff ? "quick" : "ai",
+    aiCategory: cls.category, urgency: cls.urgency, summary: cls.summary || "", deep, followups, mock: MOCK,
+    quick: jeff ? { category: jeff.category, confidence: jeff.confidence } : null,
   };
 }
 
@@ -319,7 +320,7 @@ function caseText(clean, followups, answers) {
 }
 
 // Step 2: Jeff decides. Fast: no AI writing here.
-async function judge({ market = "jp", text = "", category = "other", answers = {}, followups = [], consent = false, aiCategory = null, jeffCategory = null }) {
+async function judge({ market = "jp", text = "", category = "other", answers = {}, followups = [], consent = false, aiCategory = null, quickCategory = null }) {
   const m = MARKETS[market] ? market : "jp";
   const mk = MARKETS[m];
   const lang = mk.lang;
@@ -331,7 +332,7 @@ async function judge({ market = "jp", text = "", category = "other", answers = {
 
   const t0 = Date.now();
   let raw = await jeffJudge(full, decisions);
-  const source = raw ? "jeff" : "ai";
+  const source = raw ? "quick" : "ai";
   if (!raw) raw = await aiJudge(full, decisions);
   const seconds = Math.max(0.1, Math.round((Date.now() - t0) / 100) / 10);
   const d = raw.decisions || {};
@@ -378,7 +379,7 @@ async function judge({ market = "jp", text = "", category = "other", answers = {
     supervision: mk.supervision, disclaimer: mk.disclaimer, draft: true, mock: MOCK,
   };
   if (consent) {
-    await log({ type: "check", id: out.id, market: m, category: cat.id, aiCategory, jeffCategory, source,
+    await log({ type: "check", id: out.id, market: m, category: cat.id, aiCategory, jeffCategory: quickCategory, source,
       need: out.need, outlook: out.outlook.pct, alone: alonePct, factors: factors.map((f) => [f.id, f.ok]), urgency: urgencyLevel,
       answers, seconds, mock: MOCK });
   }
@@ -404,7 +405,7 @@ async function explain({ market = "jp", text = "", answers = {}, followups = [],
   if (MOCK) return mockExplain(lang, verdict);
   try {
     const out = await llmJSON(GUARDRAILS, `Jeff, our decision engine, already judged this case. Your only job: tell the person, in ${lang}, the reason for each of Jeff's results.
-Rules: base every reason on what the person actually wrote or tapped (quote their facts briefly); never change or contradict Jeff's result;
+Rules: never mention "Jeff", any engine, model or AI by name — call it "this check" if needed; base every reason on what the person actually wrote or tapped (quote their facts briefly); never change or contradict Jeff's result;
 never add a new percentage or probability (you may mention the court statistics given); if their description gives no information for a result, say what information is missing.
 Jeff's results: ${JSON.stringify(facts)}
 The person's case: """${full}"""
@@ -486,6 +487,30 @@ Then answer with JSON only:
   } catch (e) { aiFailed("web search", e); return null; }
 }
 
+// Optional: the person adds photos or PDFs (contract, letter, chat screenshots). The AI reads them and returns a short
+// summary of the facts that matter, which the person sees and can edit. The files are never stored.
+const DOC_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"];
+async function readDocs({ market = "jp", files = [] }) {
+  const m = MARKETS[market] ? market : "jp";
+  const lang = MARKETS[m].lang;
+  const ok = (files || []).filter((f) => DOC_TYPES.includes(f.type) && typeof f.data === "string").slice(0, 5);
+  if (!ok.length) return { summary: "", count: 0 };
+  if (MOCK) return { summary: { ja: "（テストモード：書類の要約がここに入ります）", "zh-Hant": "（測試模式：文件摘要會顯示在這裡）", "zh-Hans": "（测试模式：文件摘要会显示在这里）" }[lang], count: ok.length };
+  const blocks = ok.map((f) => f.type === "application/pdf"
+    ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: f.data } }
+    : { type: "image", source: { type: "base64", media_type: f.type, data: f.data } });
+  try {
+    const out = await llmJSON(GUARDRAILS, [...blocks, { type: "text", text: `These are documents a person uploaded about their legal problem
+(for example a contract, a letter or notice, a receipt or transfer record, or chat screenshots).
+Write, in ${lang}, a short factual summary of what they show that matters for the problem: what each document is, dates,
+amounts, deadlines, what was promised or demanded, signatures. Never write personal names, addresses, phone numbers or ID
+numbers — say "相手方/对方/the other party", "本人/我" instead. If a document is unreadable or unrelated, say so briefly.
+Return JSON: {"summary": "at most 6 short lines, each starting with ・"}` }]);
+    STATUS.aiOk++;
+    return { summary: redact(String(out.summary || "")).slice(0, 800), count: ok.length };
+  } catch (e) { aiFailed("docs", e); return { summary: "", count: ok.length, error: true }; }
+}
+
 // Old single-call API (used by tests): judge + explain together.
 async function report(body) {
   const verdict = await judge(body);
@@ -514,13 +539,13 @@ async function log(rec) {
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".json": "application/json; charset=utf-8", ".css": "text/css" };
 async function status() {
   const proxy = process.env.HTTPS_PROXY || process.env.https_proxy || process.env.ALL_PROXY || process.env.all_proxy || "";
-  return { ai: MOCK ? "test mode (no key)" : MODEL, jeff: JEFF_URL || "off", webSearch: WEB_SEARCH && !MOCK, password: !!SITE_PASSWORD,
+  return { ai: MOCK ? "test mode (no key)" : MODEL, quickEngine: JEFF_URL ? "on" : "off", webSearch: WEB_SEARCH && !MOCK, password: !!SITE_PASSWORD,
     proxyEnv: proxy ? proxy.replace(/\/\/[^@]*@/, "//***@") : "none", nodeUsesProxy: process.env.NODE_USE_ENV_PROXY === "1",
     node: process.version, ...STATUS };
 }
 
 const ROUTES = { "/api/triage": triage, "/api/judge": judge, "/api/explain": explain, "/api/report": report,
-  "/api/request": lawyerRequest, "/api/similar": webSimilar, "/api/feedback": feedback, "/api/status": status };
+  "/api/request": lawyerRequest, "/api/docs": readDocs, "/api/similar": webSimilar, "/api/feedback": feedback, "/api/status": status };
 
 export const server = http.createServer(async (req, res) => {
   try {
@@ -531,7 +556,8 @@ export const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, "http://x");
     if ((req.method === "POST" || url.pathname === "/api/status") && ROUTES[url.pathname]) {
       let body = "";
-      for await (const chunk of req) { body += chunk; if (body.length > 20000) throw new Error("too large"); }
+      const max = url.pathname === "/api/docs" ? 25_000_000 : 20000; // documents are sent as images/PDF
+      for await (const chunk of req) { body += chunk; if (body.length > max) throw new Error("too large"); }
       const out = await ROUTES[url.pathname](JSON.parse(body || "{}"));
       res.writeHead(200, { "Content-Type": TYPES[".json"] });
       return res.end(JSON.stringify(out));
@@ -539,7 +565,7 @@ export const server = http.createServer(async (req, res) => {
     if (url.pathname === "/" || url.pathname === "/web") { res.writeHead(302, { Location: "/web/" }); return res.end(); }
     let path = normalize(url.pathname).replace(/^(\.\.[/\\])+/, "");
     if (path.endsWith("/")) path += "index.html";
-    if (!/^\/(web|engine|case-packs)\//.test(path)) { res.writeHead(404); return res.end(); }
+    if (!/^\/web\//.test(path) && path !== "/engine/copy.js") { res.writeHead(404); return res.end(); } // never serve engine internals
     const file = await readFile(join(ROOT, path));
     res.writeHead(200, { "Content-Type": TYPES[extname(path)] || "application/octet-stream" });
     res.end(file);

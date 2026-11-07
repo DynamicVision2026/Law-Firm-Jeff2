@@ -58,8 +58,8 @@
   .note { background: #fff4d6; border: 1px solid #e8c766; border-radius: 8px; padding: 6px 10px; font-size: 12px; margin-top: 8px; }
   .spinner { width: 34px; height: 34px; border: 4px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin: 30px auto 12px; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .jeff { border: 1px solid var(--accent); }
-  .jeffhead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .quick { border: 1px solid var(--accent); }
+  .quickhead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
   .pct { font-size: 16px; color: var(--muted); font-weight: 700; }
   .outrow { display: flex; align-items: center; gap: 12px; }
   .big { font-size: 34px; font-weight: 800; line-height: 1; min-width: 3.2ch; }
@@ -80,6 +80,8 @@
   .split li.has { font-weight: 700; } .split li.lacks { font-weight: 700; color: var(--mid); }
   .vs { display: grid; grid-template-columns: 6.5em 3.6em 1fr; align-items: center; gap: 8px; margin: 4px 0; }
   .vs .lab { font-size: 14px; } .vs .big { font-size: 26px; }
+  .attach { margin-top: 10px; }
+  .attachbtn { display: inline-block; border-style: solid; }
   .summary { border: 2px solid var(--accent); }
   .summary dl { margin: 0; display: grid; gap: 4px; }
   .summary dt { font-size: 13px; color: var(--muted); margin-top: 8px; display: flex; align-items: center; gap: 6px; }
@@ -103,7 +105,7 @@
 
 <script type="module">
 import { COPY } from "../engine/copy.js";
-import { matches } from "../engine/engine.js";
+const matches = (cond, answers) => Object.entries(cond).every(([id, want]) => (Array.isArray(want) ? want.includes(answers[id]) : answers[id] === want));
 
 const MARKETS = { jp: { lang: "ja", name: "日本語" }, tw: { lang: "zh-Hant", name: "繁體中文" }, cn: { lang: "zh-Hans", name: "简体中文" } };
 const app = document.getElementById("app");
@@ -129,8 +131,11 @@ function renderStart() {
     <p class="tagline">${esc(c.tagline)}</p>
     <p class="muted">${esc(c.intro)}</p>
     <div class="card">
-      <textarea id="text" placeholder="${esc(c.placeholder)}" maxlength="1000">${esc(S.text)}</textarea>
+      <textarea id="text" placeholder="${esc(c.placeholder)}" maxlength="2000">${esc(S.text)}</textarea>
       <p class="muted" style="margin:6px 0 0">${esc(c.noNames)}</p>
+      <div class="attach"><label class="chip attachbtn" for="files">${esc(c.attach)}</label>
+        <input type="file" id="files" multiple accept="image/*,application/pdf" hidden>
+        <p class="muted" id="attachmsg" style="margin:4px 0 0;font-size:12px">${esc(c.attachNote)}</p></div>
       <p class="muted" style="margin:10px 0 0">${esc(c.guideTitle)}</p>
       <div class="chips">${c.guides.map((g, i) => `<button type="button" class="chip" data-g="${i}">＋ ${esc(g.label)}</button>`).join("")}</div>
       <details><summary>${esc(c.examplesTitle)}</summary>${c.examples.map((e, i) => `<div class="example" data-e="${i}">${esc(e)}</div>`).join("")}</details>
@@ -148,6 +153,45 @@ function renderStart() {
   app.querySelector("#toGuided").onclick = () => { S.guided = true; S.guidedStep = 0; renderStart(); };
   app.querySelector("#consent").onchange = (e) => (S.consent = e.target.checked);
   app.querySelector("#go").onclick = submitText;
+  app.querySelector("#files").onchange = (e) => attachFiles([...e.target.files], ta, sync);
+}
+
+// Photos are shrunk in the browser (also removes location data); PDFs are sent as they are.
+function shrinkImage(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, 1600 / Math.max(img.width, img.height));
+      const cv = document.createElement("canvas");
+      cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
+      cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+      URL.revokeObjectURL(img.src);
+      resolve({ type: "image/jpeg", data: cv.toDataURL("image/jpeg", 0.85).split(",")[1] });
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
+const readPdf = (file) => new Promise((resolve, reject) => {
+  const r = new FileReader();
+  r.onload = () => resolve({ type: "application/pdf", data: String(r.result).split(",")[1] });
+  r.onerror = reject; r.readAsDataURL(file);
+});
+async function attachFiles(list, ta, sync) {
+  const c = t(), msg = app.querySelector("#attachmsg"), go = app.querySelector("#go");
+  const picked = list.slice(0, 5);
+  if (!picked.length) return;
+  if (picked.some((f) => f.type === "application/pdf" && f.size > 8e6)) { msg.textContent = c.attachTooBig; return; }
+  msg.textContent = c.attachReading; go.disabled = true;
+  try {
+    const files = await Promise.all(picked.map((f) => (f.type === "application/pdf" ? readPdf(f) : shrinkImage(f))));
+    const r = await api("/api/docs", { market: S.market, files });
+    if (!r.summary) throw new Error("empty");
+    ta.value = (ta.value.trim() ? ta.value.trim() + "\n\n" : "") + c.attachHeader + "\n" + r.summary;
+    msg.textContent = c.attachDone(r.count);
+  } catch { msg.textContent = c.attachError; }
+  app.querySelector("#files").value = "";
+  sync();
 }
 
 // ---------- guided mode: 5 short questions that write the description ----------
@@ -225,7 +269,7 @@ async function getReport() {
   try {
     S.result = await api("/api/judge", {
       market: S.market, text: S.text, category: S.triage.category, answers: S.answers, followups: visible(),
-      consent: S.consent, aiCategory: S.triage.aiCategory, jeffCategory: S.triage.jeff?.category ?? null,
+      consent: S.consent, aiCategory: S.triage.aiCategory, quickCategory: S.triage.quick?.category ?? null,
     });
     renderResult();
     if (!S.result.similar) api("/api/similar", { market: S.market, category: S.result.category, verdict: S.result })
@@ -235,7 +279,7 @@ async function getReport() {
   } catch { fail(); }
 }
 
-// ---------- screen 3: the report — Jeff's instant result first, then money, cost, and the AI's explanation ----------
+// ---------- screen 3: the report — the instant check first, then money, cost, and the AI's explanation ----------
 const bar = (pct, cls = "") => `<div class="meter ${cls}"><div style="width:${Math.max(3, Math.min(100, pct))}%"></div></div>`;
 function similarBlock(x, R) {
   if (!x) return "";
@@ -264,7 +308,7 @@ function renderResult() {
     [R.sumQ[0], `<b class="lvl-${r.level}">${esc(R.need[r.need.value] || "")}</b> <span class="pct">${r.need.pct}%</span>`],
     [R.sumQ[1], esc(feeShort) + (r.fee.small ? ` <span class="lvl-medium">⚠</span>` : "")],
     [R.sumQ[2], esc(R.sumHelp(okN, r.factors.length))],
-    [R.sumQ[3], `${esc(R.aloneL)} <b class="${pcls(r.alone.pct)}">${r.alone.pct}%</b> → ${esc(R.lawyerL)} <b class="${outCls}">${r.outlook.pct}%</b> <span class="muted">(Jeff)</span><span id="sumweb"></span>`],
+    [R.sumQ[3], `${esc(R.aloneL)} <b class="${pcls(r.alone.pct)}">${r.alone.pct}%</b> → ${esc(R.lawyerL)} <b class="${outCls}">${r.outlook.pct}%</b><span id="sumweb"></span>`],
   ];
   h += `<div class="card summary"><p class="q" style="margin:0 0 8px">${esc(R.sumTitle)}</p>
     <dl>${rows.map(([q, a], i) => `<dt><span class="n">${i + 1}</span>${esc(q)}</dt><dd>${a}</dd>`).join("")}
@@ -272,9 +316,9 @@ function renderResult() {
   </div>
   <p class="muted center" style="margin:18px 0 6px">▼ ${esc(R.sumDetail)}</p>`;
 
-  // 1. Jeff instant check
-  h += `<div class="card jeff">
-    <div class="jeffhead"><b>${esc(R.jeffTitle)}</b><span class="muted">${esc(R.jeffSpeed(r.seconds))}</span></div>
+  // 1. instant check
+  h += `<div class="card quick">
+    <div class="quickhead"><b>${esc(R.quickTitle)}</b><span class="muted">${esc(R.quickSpeed(r.seconds))}</span></div>
     ${r.source === "ai" ? `<p class="muted" style="margin:0">${esc(R.byAI)}</p>` : ""}
     <p class="muted" style="margin:10px 0 2px">${esc(R.needQ)}</p>
     <p class="headline lvl-${r.level}" style="margin:0">${esc(R.need[r.need.value] || "")} <span class="pct">${r.need.pct}%</span></p><p class="why" data-why="need"></p>
