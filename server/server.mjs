@@ -340,9 +340,11 @@ async function judge({ market = "jp", text = "", category = "other", answers = {
   const need = d.need || { value: "consult", confidence: 0.5 };
   const outlook = d.outlook || { probabilities: { good: 0.5 } };
   const alone = d.alone || { probabilities: { good: 0.3 } };
-  const withPct = Math.round((outlook.probabilities?.good ?? 0.5) * 100);
+  // Turn Jeff's three levels into one score: good counts fully, uncertain half, difficult zero.
+  const score = (p, dflt) => (p ? Math.round(((p.good ?? 0) + 0.5 * (p.mixed ?? 0)) * 100) : dflt);
+  const withPct = score(outlook.probabilities, 50);
   // A lawyer can't make the result worse than handling it alone, so "alone" is capped at "with a lawyer".
-  const alonePct = Math.min(withPct, Math.round((alone.probabilities?.good ?? 0.3) * 100));
+  const alonePct = Math.min(withPct, score(alone.probabilities, 30));
   const factors = ct.factors.map((f) => {
     const r = d["f_" + f.id] || { value: "yes", probabilities: { yes: 0.5 } };
     return { id: f.id, label: f.label[lang], ok: r.value === "yes", pct: Math.round((r.probabilities?.[r.value] ?? r.confidence ?? 0.5) * 100) };
