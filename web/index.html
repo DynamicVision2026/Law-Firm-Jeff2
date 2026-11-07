@@ -58,7 +58,7 @@
   .note { background: #fff4d6; border: 1px solid #e8c766; border-radius: 8px; padding: 6px 10px; font-size: 12px; margin-top: 8px; }
   .spinner { width: 34px; height: 34px; border: 4px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin: 30px auto 12px; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .jeff { border: 2px solid var(--accent); }
+  .jeff { border: 1px solid var(--accent); }
   .jeffhead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
   .pct { font-size: 16px; color: var(--muted); font-weight: 700; }
   .outrow { display: flex; align-items: center; gap: 12px; }
@@ -78,6 +78,12 @@
   .similar { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 12px; }
   .split { margin: 8px 0 0; padding-left: 18px; font-size: 14px; display: grid; gap: 2px; }
   .split li.has { font-weight: 700; } .split li.lacks { font-weight: 700; color: var(--mid); }
+  .summary { border: 2px solid var(--accent); }
+  .summary dl { margin: 0; display: grid; gap: 4px; }
+  .summary dt { font-size: 13px; color: var(--muted); margin-top: 8px; display: flex; align-items: center; gap: 6px; }
+  .summary dd { margin: 0 0 0 26px; font-size: 16px; }
+  .summary .n { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 12px; font-weight: 700; display: grid; place-items: center; flex: none; }
+  .summary b.good, .similar b.good { color: var(--low); } .summary b.mid { color: var(--mid); } .summary b.weak { color: var(--high); }
   .fine { font-size: 12px; color: var(--muted); margin: 12px 0 0; }
   .steps { margin: 0; padding-left: 22px; display: grid; gap: 4px; }
   .cta { background: var(--accent-soft); border-color: var(--accent); }
@@ -248,6 +254,21 @@ function renderResult() {
   const outCls = r.outlook.pct >= 60 ? "good" : r.outlook.pct >= 35 ? "mid" : "weak";
   let h = `<span class="detected">${esc(c.detected)}：${esc(r.categoryLabel)}</span>`;
 
+  // 0. the five answers at a glance, with the lawyer button
+  const okN = r.factors.filter((f) => f.ok).length;
+  const feeShort = r.fee.text.split(/[；;（(]/)[0];
+  const rows = [
+    [R.sumQ[0], `<b class="lvl-${r.level}">${esc(R.need[r.need.value] || "")}</b> <span class="pct">${r.need.pct}%</span>`],
+    [R.sumQ[1], esc(feeShort) + (r.fee.small ? ` <span class="lvl-medium">⚠</span>` : "")],
+    [R.sumQ[2], esc(R.sumHelp(okN, r.factors.length))],
+    [R.sumQ[3], `<b class="${outCls}">${r.outlook.pct}%</b> <span class="muted">(Jeff)</span><span id="sumweb"></span>`],
+  ];
+  h += `<div class="card summary"><p class="q" style="margin:0 0 8px">${esc(R.sumTitle)}</p>
+    <dl>${rows.map(([q, a], i) => `<dt><span class="n">${i + 1}</span>${esc(q)}</dt><dd>${a}</dd>`).join("")}
+    <dt><span class="n">5</span>${esc(R.sumQ[4])}</dt><dd id="req"><p class="muted" style="margin:0 0 8px">${esc(R.requestText)}</p><button class="primary" id="reqbtn">${esc(R.requestBtn)}</button></dd></dl>
+  </div>
+  <p class="muted center" style="margin:18px 0 6px">▼ ${esc(R.sumDetail)}</p>`;
+
   // 1. Jeff instant check
   h += `<div class="card jeff">
     <div class="jeffhead"><b>${esc(R.jeffTitle)}</b><span class="muted">${esc(R.jeffSpeed(r.seconds))}</span></div>
@@ -275,8 +296,6 @@ function renderResult() {
   h += `<div class="card" id="explain"><p class="center muted" style="margin:0">${esc(R.explaining)}</p></div>`;
 
   // 4. lawyer review — the moment the person shares their case
-  h += `<div class="card cta" id="req"><p class="q" style="margin-top:0">${esc(R.requestTitle)}</p><p class="muted">${esc(R.requestText)}</p>
-    <button class="primary" id="reqbtn">${esc(R.requestBtn)}</button></div>`;
 
   h += `<div class="card" id="fb"><p class="q" style="font-size:16px">${esc(c.feedbackQ)}</p>
         <div class="opts" style="grid-template-columns:1fr 1fr"><button class="opt" data-h="yes">${esc(c.yes)}</button><button class="opt" data-h="no">${esc(c.no)}</button></div></div>`;
@@ -306,6 +325,8 @@ function renderWeb(w) {
   if (!box) return;
   if (!w) return box.remove();
   const R = t().r, cls = w.pct >= 60 ? "good" : w.pct >= 35 ? "mid" : "weak";
+  const sw = app.querySelector("#sumweb");
+  if (sw && w.pct != null) sw.innerHTML = ` ・ <b class="${cls}">≈${w.pct}%</b> <span class="muted">(${esc(R.webShort)})</span>`;
   box.innerHTML = `<p style="margin:0 0 4px"><b>${esc(R.webTitle)}</b></p>
     ${w.pct != null ? `<p class="muted" style="margin:6px 0 2px">${esc(R.webPct)}</p><div class="outrow"><span class="big ${cls}">≈${w.pct}%</span>${bar(w.pct, cls)}</div>` : ""}
     ${w.typical ? `<p style="margin:8px 0 0">${esc(w.typical)}</p>` : ""}
