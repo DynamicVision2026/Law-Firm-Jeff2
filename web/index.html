@@ -75,6 +75,9 @@
   .why:not(.on)::after { content: "…"; }
   .why.on { color: var(--ink); background: var(--bg); border-radius: 8px; padding: 6px 10px; }
   .factors li > div { flex: 1; min-width: 0; }
+  .similar { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 12px; }
+  .split { margin: 8px 0 0; padding-left: 18px; font-size: 14px; display: grid; gap: 2px; }
+  .split li.has { font-weight: 700; } .split li.lacks { font-weight: 700; color: var(--mid); }
   .fine { font-size: 12px; color: var(--muted); margin: 12px 0 0; }
   .steps { margin: 0; padding-left: 22px; display: grid; gap: 4px; }
   .cta { background: var(--accent-soft); border-color: var(--accent); }
@@ -224,6 +227,20 @@ async function getReport() {
 
 // ---------- screen 3: the report — Jeff's instant result first, then money, cost, and the AI's explanation ----------
 const bar = (pct, cls = "") => `<div class="meter ${cls}"><div style="width:${Math.max(3, Math.min(100, pct))}%"></div></div>`;
+function similarBlock(x, R) {
+  if (!x) return "";
+  const cls = x.winPct >= 60 ? "good" : x.winPct >= 35 ? "mid" : "weak";
+  const fmt = (n) => Number(n).toLocaleString("en-US");
+  return `<div class="similar">
+    <p style="margin:0 0 4px"><b>${esc(R.similarTitle(x.n, x.years))}</b></p>
+    <p class="muted" style="margin:6px 0 2px">${esc(R.similarWin)}</p>
+    <div class="outrow"><span class="big ${cls}">${x.winPct}%</span>${bar(x.winPct, cls)}</div>
+    ${x.contestedWinPct != null ? `<p class="muted" style="margin:4px 0 0">${esc(R.similarContested(x.contestedWinPct))}</p>` : ""}
+    ${x.medianAwarded ? `<p style="margin:8px 0 0">${esc(R.similarAward(fmt(x.medianAwarded), x.medianAwardedOfClaim))}</p>` : ""}
+    ${x.factors.length ? `<ul class="split">${x.factors.map((f) => `<li class="${f.personHas === true ? "has" : f.personHas === false ? "lacks" : ""}">${esc(R.similarWith(f.label, f.withPct, f.withoutPct))}</li>`).join("")}</ul>` : ""}
+    <p class="fine">${esc(R.similarNote)}</p>
+  </div>`;
+}
 function renderResult() {
   const c = t(), R = c.r, r = S.result;
   const outCls = r.outlook.pct >= 60 ? "good" : r.outlook.pct >= 35 ? "mid" : "weak";
@@ -238,6 +255,7 @@ function renderResult() {
     <p class="muted" style="margin:12px 0 2px">${esc(R.outlookQ)}</p>
     <div class="outrow"><span class="big ${outCls}">${r.outlook.pct}%</span>${bar(r.outlook.pct, outCls)}</div><p class="why" data-why="outlook"></p>
     ${r.urgency != null ? `<p style="margin:10px 0 0">${esc(R.urgency)}：<b class="lvl-${["low", "medium", "high"][r.urgency]}">${esc(R.urg[r.urgency])}</b></p>` : ""}
+    ${similarBlock(r.similar, R)}
     <h3>${esc(R.factors)}</h3>
     <ul class="factors">${r.factors.map((f) => `<li class="${f.ok ? "ok" : "ng"}"><span>${f.ok ? "✓" : "!"}</span><div>${esc(f.label)}<p class="why" data-why="c_${esc(f.id)}"></p></div></li>`).join("")}</ul>
     <p class="fine">${esc(R.outlookNote)}</p>

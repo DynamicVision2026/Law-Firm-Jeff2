@@ -76,7 +76,7 @@ async function llmJSONOnce(system, user) {
 }
 
 // One automatic retry: an occasional empty or cut-off reply should not reach the person.
-async function llmJSON(system, user) {
+export async function llmJSON(system, user) {
   try { return await llmJSONOnce(system, user); }
   catch (e) {
     if (/LLM 4(00|01|03)/.test(e.message)) throw e; // bad key or request: retrying won't help
@@ -176,6 +176,25 @@ function mockClassify(text) {
   const hit = KEYWORDS.find(([, words]) => words.some((w) => text.includes(w)));
   const urgent = /裁判所|法院|サイン|签字|簽名|解雇|期限|時効|时效|時效|逮捕/.test(text);
   return { category: hit ? hit[0] : "other", urgency: urgent ? "urgent" : "normal", summary: "", source: "mock" };
+}
+
+// ---------- how similar cases ended in court (tables built by tools/outcomes) ----------
+
+function similarCases(market, categoryId, factors, lang) {
+  const file = join(ROOT, "engine", "outcomes", `${market}.json`);
+  if (!existsSync(file)) return null;
+  let table;
+  try { table = JSON.parse(readFileSync(file, "utf8")); } catch { return null; }
+  const c = table.categories?.[categoryId];
+  if (!c) return null;
+  const labels = Object.fromEntries(caseType(categoryId).factors.map((f) => [f.id, f.label[lang]]));
+  return {
+    n: c.n, years: c.years, winPct: c.winPct, contestedWinPct: c.contestedWinPct,
+    medianAwarded: c.medianAwarded, medianAwardedOfClaim: c.medianAwardedOfClaim, source: table.source,
+    factors: Object.entries(c.factors || {}).filter(([id]) => labels[id]).map(([id, f]) => ({
+      id, label: labels[id], personHas: factors.find((x) => x.id === id)?.ok ?? null, withPct: f.withPct, withoutPct: f.withoutPct,
+    })),
+  };
 }
 
 // ---------- the decisions Jeff makes (English options; Jeff reads Japanese and Chinese input) ----------
@@ -342,7 +361,7 @@ async function judge({ market = "jp", text = "", category = "other", answers = {
     need: { value: need.value, pct: Math.round((need.confidence ?? 0.5) * 100) },
     outlook: { pct: Math.round((outlook.probabilities?.good ?? 0.5) * 100), value: outlook.value || "mixed" },
     factors, urgency: urgencyLevel,
-    money, fee, help: ct.help[lang],
+    money, fee, help: ct.help[lang], similar: similarCases(m, cat.id, factors, lang),
     free: mk.cost + (cat.id === "traffic" && m === "jp" ? "ご自身やご家族の自動車保険に「弁護士費用特約」があれば、費用の自己負担がないことも多いです。" : ""),
     packWarnings: packOut?.warnings || [],
     supervision: mk.supervision, disclaimer: mk.disclaimer, draft: true, mock: MOCK,
@@ -367,12 +386,14 @@ async function explain({ market = "jp", text = "", answers = {}, followups = [],
     outlook_good_result_with_lawyer_pct: verdict.outlook?.pct,
     checks: (verdict.factors || []).map((f) => ({ id: f.id, check: f.label, result: f.ok ? "yes (strength)" : "no (weak point)" })),
     money: verdict.money?.text, typical_fee: verdict.fee?.text, fee_may_exceed_amount: !!verdict.fee?.small,
+    similar_court_cases: verdict.similar ? { decisions: verdict.similar.n, claimant_won_all_or_part_pct: verdict.similar.winPct,
+      by_fact: verdict.similar.factors.map((f) => ({ fact: f.label, person_has_it: f.personHas, won_pct_with: f.withPct, won_pct_without: f.withoutPct })) } : null,
   };
   if (MOCK) return mockExplain(lang, verdict);
   try {
     const out = await llmJSON(GUARDRAILS, `Jeff, our decision engine, already judged this case. Your only job: tell the person, in ${lang}, the reason for each of Jeff's results.
 Rules: base every reason on what the person actually wrote or tapped (quote their facts briefly); never change or contradict Jeff's result;
-never add a new percentage or probability; if their description gives no information for a result, say what information is missing.
+never add a new percentage or probability (you may mention the court statistics given); if their description gives no information for a result, say what information is missing.
 Jeff's results: ${JSON.stringify(facts)}
 The person's case: """${full}"""
 Return JSON:
