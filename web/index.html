@@ -78,6 +78,8 @@
   .similar { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 12px; }
   .split { margin: 8px 0 0; padding-left: 18px; font-size: 14px; display: grid; gap: 2px; }
   .split li.has { font-weight: 700; } .split li.lacks { font-weight: 700; color: var(--mid); }
+  .vs { display: grid; grid-template-columns: 6.5em 3.6em 1fr; align-items: center; gap: 8px; margin: 4px 0; }
+  .vs .lab { font-size: 14px; } .vs .big { font-size: 26px; }
   .summary { border: 2px solid var(--accent); }
   .summary dl { margin: 0; display: grid; gap: 4px; }
   .summary dt { font-size: 13px; color: var(--muted); margin-top: 8px; display: flex; align-items: center; gap: 6px; }
@@ -251,6 +253,7 @@ function similarBlock(x, R) {
 }
 function renderResult() {
   const c = t(), R = c.r, r = S.result;
+  const pcls = (p) => (p >= 60 ? "good" : p >= 35 ? "mid" : "weak");
   const outCls = r.outlook.pct >= 60 ? "good" : r.outlook.pct >= 35 ? "mid" : "weak";
   let h = `<span class="detected">${esc(c.detected)}：${esc(r.categoryLabel)}</span>`;
 
@@ -261,7 +264,7 @@ function renderResult() {
     [R.sumQ[0], `<b class="lvl-${r.level}">${esc(R.need[r.need.value] || "")}</b> <span class="pct">${r.need.pct}%</span>`],
     [R.sumQ[1], esc(feeShort) + (r.fee.small ? ` <span class="lvl-medium">⚠</span>` : "")],
     [R.sumQ[2], esc(R.sumHelp(okN, r.factors.length))],
-    [R.sumQ[3], `<b class="${outCls}">${r.outlook.pct}%</b> <span class="muted">(Jeff)</span><span id="sumweb"></span>`],
+    [R.sumQ[3], `${esc(R.aloneL)} <b class="${pcls(r.alone.pct)}">${r.alone.pct}%</b> → ${esc(R.lawyerL)} <b class="${outCls}">${r.outlook.pct}%</b> <span class="muted">(Jeff)</span><span id="sumweb"></span>`],
   ];
   h += `<div class="card summary"><p class="q" style="margin:0 0 8px">${esc(R.sumTitle)}</p>
     <dl>${rows.map(([q, a], i) => `<dt><span class="n">${i + 1}</span>${esc(q)}</dt><dd>${a}</dd>`).join("")}
@@ -276,7 +279,9 @@ function renderResult() {
     <p class="muted" style="margin:10px 0 2px">${esc(R.needQ)}</p>
     <p class="headline lvl-${r.level}" style="margin:0">${esc(R.need[r.need.value] || "")} <span class="pct">${r.need.pct}%</span></p><p class="why" data-why="need"></p>
     <p class="muted" style="margin:12px 0 2px">${esc(R.outlookQ)}</p>
-    <div class="outrow"><span class="big ${outCls}">${r.outlook.pct}%</span>${bar(r.outlook.pct, outCls)}</div><p class="why" data-why="outlook"></p>
+    <div class="vs"><span class="lab">${esc(R.aloneL)}</span><span class="big ${pcls(r.alone.pct)}">${r.alone.pct}%</span>${bar(r.alone.pct, pcls(r.alone.pct))}</div>
+    <div class="vs"><span class="lab"><b>${esc(R.lawyerL)}</b></span><span class="big ${outCls}">${r.outlook.pct}%</span>${bar(r.outlook.pct, outCls)}</div>
+    <p class="why" data-why="alone"></p><p class="why" data-why="outlook"></p>
     ${r.urgency != null ? `<p style="margin:10px 0 0">${esc(R.urgency)}：<b class="lvl-${["low", "medium", "high"][r.urgency]}">${esc(R.urg[r.urgency])}</b></p>` : ""}
     ${r.similar ? similarBlock(r.similar, R) : `<div class="similar" id="web"><p class="muted" style="margin:0">${esc(R.webSearching)}</p></div>`}
     <h3>${esc(R.factors)}</h3>
@@ -341,7 +346,7 @@ function renderExplain(e) {
   const R = t().r, r = S.result;
   app.querySelectorAll("[data-why]").forEach((p) => {
     const k = p.dataset.why;
-    const txt = !e ? "" : k === "need" ? e.reasons.need : k === "outlook" ? e.reasons.outlook : e.reasons.checks[k.slice(2)];
+    const txt = !e ? "" : k === "need" ? e.reasons.need : k === "outlook" ? e.reasons.outlook : k === "alone" ? e.reasons.alone : e.reasons.checks[k.slice(2)];
     if (txt) { p.textContent = txt; p.classList.add("on"); } else p.remove();
   });
   if (!e) { box.remove(); return; }

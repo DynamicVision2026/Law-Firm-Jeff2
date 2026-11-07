@@ -210,12 +210,18 @@ const OUTLOOK = {
   mixed: "Uncertain: some facts help the person and some hurt them",
   weak: "Even with a lawyer the person is unlikely to get much: weak evidence, a very small amount, or too late",
 };
+const ALONE = {
+  good: "Handling it alone without a lawyer, the person is likely to get a good result: the other side will probably pay, agree or back down",
+  mixed: "Handling it alone, the result is uncertain",
+  weak: "Handling it alone, the person is unlikely to get much: without a lawyer the other side will likely ignore, delay or fight them",
+};
 const LEVEL = { now: "high", consult: "medium", self: "low" };
 
 function decisionsFor(categoryId) {
   return [
     { id: "need", labels: NEED },
     { id: "outlook", labels: OUTLOOK },
+    { id: "alone", labels: ALONE },
     ...caseType(categoryId).factors.map((f) => ({ id: "f_" + f.id, labels: { yes: f.yes, no: f.no } })),
   ];
 }
@@ -259,7 +265,7 @@ function mockJudge(text, decisions) {
   const out = {};
   for (const d of decisions) {
     const keys = Object.keys(d.labels);
-    const value = d.id === "need" ? (serious ? "now" : "consult") : d.id === "outlook" ? "mixed" : "yes";
+    const value = d.id === "need" ? (serious ? "now" : "consult") : d.id === "outlook" ? "mixed" : d.id === "alone" ? "weak" : "yes";
     const probs = Object.fromEntries(keys.map((k) => [k, k === value ? 0.6 : 0.4 / (keys.length - 1)]));
     out[d.id] = { value, confidence: 0.6, probabilities: probs };
   }
@@ -332,6 +338,10 @@ async function judge({ market = "jp", text = "", category = "other", answers = {
 
   const need = d.need || { value: "consult", confidence: 0.5 };
   const outlook = d.outlook || { probabilities: { good: 0.5 } };
+  const alone = d.alone || { probabilities: { good: 0.3 } };
+  const withPct = Math.round((outlook.probabilities?.good ?? 0.5) * 100);
+  // A lawyer can't make the result worse than handling it alone, so "alone" is capped at "with a lawyer".
+  const alonePct = Math.min(withPct, Math.round((alone.probabilities?.good ?? 0.3) * 100));
   const factors = ct.factors.map((f) => {
     const r = d["f_" + f.id] || { value: "yes", probabilities: { yes: 0.5 } };
     return { id: f.id, label: f.label[lang], ok: r.value === "yes", pct: Math.round((r.probabilities?.[r.value] ?? r.confidence ?? 0.5) * 100) };
@@ -360,7 +370,7 @@ async function judge({ market = "jp", text = "", category = "other", answers = {
     level: LEVEL[need.value] || "medium",
     headline: COPY[lang].levels[LEVEL[need.value] || "medium"],
     need: { value: need.value, pct: Math.round((need.confidence ?? 0.5) * 100) },
-    outlook: { pct: Math.round((outlook.probabilities?.good ?? 0.5) * 100), value: outlook.value || "mixed" },
+    outlook: { pct: withPct, value: outlook.value || "mixed" }, alone: { pct: alonePct },
     factors, urgency: urgencyLevel,
     money, fee, help: ct.help[lang], similar: similarCases(m, cat.id, factors, lang),
     free: mk.cost + (cat.id === "traffic" && m === "jp" ? "ご自身やご家族の自動車保険に「弁護士費用特約」があれば、費用の自己負担がないことも多いです。" : ""),
@@ -369,7 +379,7 @@ async function judge({ market = "jp", text = "", category = "other", answers = {
   };
   if (consent) {
     await log({ type: "check", id: out.id, market: m, category: cat.id, aiCategory, jeffCategory, source,
-      need: out.need, outlook: out.outlook.pct, factors: factors.map((f) => [f.id, f.ok]), urgency: urgencyLevel,
+      need: out.need, outlook: out.outlook.pct, alone: alonePct, factors: factors.map((f) => [f.id, f.ok]), urgency: urgencyLevel,
       answers, seconds, mock: MOCK });
   }
   return out;
@@ -385,6 +395,7 @@ async function explain({ market = "jp", text = "", answers = {}, followups = [],
     problem: verdict.categoryLabel,
     lawyer_needed: NEED_EN[verdict.need?.value] || verdict.need?.value,
     outlook_good_result_with_lawyer_pct: verdict.outlook?.pct,
+    outlook_good_result_alone_pct: verdict.alone?.pct,
     checks: (verdict.factors || []).map((f) => ({ id: f.id, check: f.label, result: f.ok ? "yes (strength)" : "no (weak point)" })),
     money: verdict.money?.text, typical_fee: verdict.fee?.text, fee_may_exceed_amount: !!verdict.fee?.small,
     similar_court_cases: verdict.similar ? { decisions: verdict.similar.n, claimant_won_all_or_part_pct: verdict.similar.winPct,
@@ -399,13 +410,14 @@ Jeff's results: ${JSON.stringify(facts)}
 The person's case: """${full}"""
 Return JSON:
 {"need": one or two sentences: why Jeff judged "${facts.lawyer_needed}",
- "outlook": one or two sentences: which of their facts raise and which lower the outlook of ${facts.outlook_good_result_with_lawyer_pct}%,
+ "outlook": one or two sentences: which of their facts raise and which lower the outlook (${facts.outlook_good_result_alone_pct}% on their own, ${facts.outlook_good_result_with_lawyer_pct}% with a lawyer),
+ "alone": one or two sentences: what a lawyer concretely adds in this case that explains the difference between ${facts.outlook_good_result_alone_pct}% and ${facts.outlook_good_result_with_lawyer_pct}%,
  "checks": {${facts.checks.map((c) => `"${c.id}": one short sentence why this check is ${c.result.split(" ")[0]}`).join(", ")}},
  "steps": exactly 3 short things to do this week that would improve the weak points, most important first}`);
     STATUS.aiOk++;
     const checks = {};
     for (const c of facts.checks) checks[c.id] = String(out.checks?.[c.id] || "");
-    return { reasons: { need: String(out.need || ""), outlook: String(out.outlook || ""), checks }, steps: (out.steps || []).slice(0, 3).map(String) };
+    return { reasons: { need: String(out.need || ""), outlook: String(out.outlook || ""), alone: String(out.alone || ""), checks }, steps: (out.steps || []).slice(0, 3).map(String) };
   } catch (e) { aiFailed("explain", e); return mockExplain(lang, verdict); }
 }
 
@@ -416,7 +428,7 @@ function mockExplain(lang, v) {
     "zh-Hans": { need: "根据您填写的内容与回答判断。", ok: "根据您的回答，这一点成立。", ng: "从您的回答无法确认这一点。", steps: ["保存证据（书面・聊天记录・照片）", "确认前不要签署任何文件", "利用免费咨询向律师确认"] },
   }[lang];
   const checks = Object.fromEntries((v.factors || []).map((f) => [f.id, f.ok ? t.ok : t.ng]));
-  return { reasons: { need: t.need, outlook: t.need, checks }, steps: t.steps };
+  return { reasons: { need: t.need, outlook: t.need, alone: "", checks }, steps: t.steps };
 }
 
 // Rough "how similar cases usually end", from a quick web search (until we license court databases).
