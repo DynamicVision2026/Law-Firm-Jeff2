@@ -316,7 +316,7 @@ function renderResult() {
     [R.sumQ[0], `<b class="lvl-${r.level}">${esc(R.need[r.need.value] || "")}</b> <span class="pct">${r.need.pct}%</span>`],
     [R.sumQ[1], esc(feeShort) + (r.fee.small ? ` <span class="lvl-medium">⚠</span>` : "")],
     [R.sumQ[2], esc(R.sumHelp(okN, r.factors.length))],
-    [R.sumQ[3], `${esc(R.aloneL)} <b class="${pcls(r.alone.pct)}">${r.alone.pct}%</b> → ${esc(R.lawyerL)} <b class="${outCls}">${r.outlook.pct}%</b><span id="sumweb"></span>`],
+    [R.sumQ[3], `<span id="sumOdds" class="muted">${esc(R.checking)}</span><span id="sumweb"></span>`],
   ];
   h += `<div class="card summary"><p class="q" style="margin:0 0 8px">${esc(R.sumTitle)}</p>
     <dl>${rows.map(([q, a], i) => `<dt><span class="n">${i + 1}</span>${esc(q)}</dt><dd>${a}</dd>`).join("")}
@@ -331,8 +331,7 @@ function renderResult() {
     <p class="muted" style="margin:10px 0 2px">${esc(R.needQ)}</p>
     <p class="headline lvl-${r.level}" style="margin:0">${esc(R.need[r.need.value] || "")} <span class="pct">${r.need.pct}%</span></p><p class="why" data-why="need"></p>
     <p class="muted" style="margin:12px 0 2px">${esc(R.outlookQ)}</p>
-    <div class="vs"><span class="lab">${esc(R.aloneL)}</span><span class="big ${pcls(r.alone.pct)}">${r.alone.pct}%</span>${bar(r.alone.pct, pcls(r.alone.pct))}</div>
-    <div class="vs"><span class="lab"><b>${esc(R.lawyerL)}</b></span><span class="big ${outCls}">${r.outlook.pct}%</span>${bar(r.outlook.pct, outCls)}</div>
+    <div id="odds"><p class="muted" style="margin:6px 0">${esc(R.checking)}</p></div>
     <p class="why" data-why="alone"></p><p class="why" data-why="outlook"></p>
     ${r.urgency != null ? `<p style="margin:10px 0 0">${esc(R.urgency)}：<b class="lvl-${["low", "medium", "high"][r.urgency]}">${esc(R.urg[r.urgency])}</b></p>` : ""}
     ${r.similar ? similarBlock(r.similar, R) : `<div class="similar" id="web"><p class="muted" style="margin:0">${esc(R.webSearching)}</p></div>`}
@@ -395,10 +394,20 @@ function renderWeb(w) {
     <p class="fine">${esc(R.webNote)}</p>`;
 }
 
+// The two outcome numbers are shown once the AI has checked them against the facts (engine numbers if that fails).
+function renderOdds(o) {
+  const R = t().r, pc = (p) => (p >= 60 ? "good" : p >= 35 ? "mid" : "weak");
+  const od = app.querySelector("#odds"), so = app.querySelector("#sumOdds");
+  if (od) od.innerHTML = `<div class="vs"><span class="lab">${esc(R.aloneL)}</span><span class="big ${pc(o.alone)}">${o.alone}%</span>${bar(o.alone, pc(o.alone))}</div>
+    <div class="vs"><span class="lab"><b>${esc(R.lawyerL)}</b></span><span class="big ${pc(o.with)}">${o.with}%</span>${bar(o.with, pc(o.with))}</div>`;
+  if (so) { so.className = ""; so.innerHTML = `${esc(R.aloneL)} <b class="${pc(o.alone)}">${o.alone}%</b> → ${esc(R.lawyerL)} <b class="${pc(o.with)}">${o.with}%</b>`; }
+}
+
 function renderExplain(e) {
   const box = app.querySelector("#explain");
   if (!box) return;
   const R = t().r, r = S.result;
+  renderOdds(e?.odds || { alone: r.alone.pct, with: r.outlook.pct });
   app.querySelectorAll("[data-why]").forEach((p) => {
     const k = p.dataset.why;
     const txt = !e ? "" : k === "need" ? e.reasons.need : k === "outlook" ? e.reasons.outlook : k === "alone" ? e.reasons.alone : e.reasons.checks[k.slice(2)];

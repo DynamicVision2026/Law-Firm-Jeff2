@@ -430,21 +430,39 @@ async function explain({ market = "jp", text = "", answers = {}, followups = [],
   };
   if (MOCK) return mockExplain(lang, verdict);
   try {
-    const out = await llmJSON(GUARDRAILS, `Jeff, our decision engine, already judged this case. Your only job: tell the person, in ${lang}, the reason for each of Jeff's results.
-Rules: never mention "Jeff", any engine, model or AI by name — call it "this check" if needed; base every reason on what the person actually wrote or tapped (quote their facts briefly); never change or contradict Jeff's result;
-never add a new percentage or probability (you may mention the court statistics given); if their description gives no information for a result, say what information is missing.
-Jeff's results: ${JSON.stringify(facts)}
+    const MARKET_NAME = { jp: "Japan", tw: "Taiwan", cn: "mainland China" }[m];
+    const out = await llmJSON(GUARDRAILS, `Our quick-check engine already judged this case. Your job, in ${lang}:
+(1) Check the engine's two rough outcome numbers and correct them if they don't fit the facts, and
+(2) give the person the reason for each result.
+"Good result" means the person gets all or most of what they reasonably want (money back, compensation, the problem stopped).
+For the two numbers, think about this specific case in ${MARKET_NAME}: the strength of their evidence, the other side's likely
+response, deadlines, and the free or low-cost routes a person can use alone (for example labor arbitration, mediation, small-claims
+procedures, consumer complaint channels, legal-aid hotlines). "On their own" must reflect what those free routes realistically
+achieve without a lawyer; "with a lawyer" must not be lower than "on their own". These are rough, honest estimates, not court
+win rates: keep them moderate unless the facts are clearly very strong or very weak.
+Rules: never mention "Jeff", any engine, model or AI by name — call it "this check" if needed; base every reason on what the
+person actually wrote or tapped (quote their facts briefly); keep the engine's need-a-lawyer result and the checks as they are;
+if their description gives no information for something, say what information is missing.
+Engine results: ${JSON.stringify(facts)}
 The person's case: """${full}"""
 Return JSON:
-{"need": one or two sentences: why Jeff judged "${facts.lawyer_needed}",
- "outlook": one or two sentences: which of their facts raise and which lower the outlook (${facts.outlook_good_result_alone_pct}% on their own, ${facts.outlook_good_result_with_lawyer_pct}% with a lawyer),
- "alone": one or two sentences: what a lawyer concretely adds in this case that explains the difference between ${facts.outlook_good_result_alone_pct}% and ${facts.outlook_good_result_with_lawyer_pct}%,
+{"alone_pct": integer 0-100, your checked estimate for handling it on their own,
+ "with_pct": integer 0-100, your checked estimate with a lawyer's help,
+ "need": one or two sentences: why the check judged "${facts.lawyer_needed}",
+ "alone": one or two sentences: why about alone_pct on their own — what they can realistically achieve alone and where it gets hard,
+ "outlook": one or two sentences: why about with_pct with a lawyer — what a lawyer concretely adds here, and which facts still hold it back,
  "checks": {${facts.checks.map((c) => `"${c.id}": one short sentence why this check is ${c.result.split(" ")[0]}`).join(", ")}},
  "steps": exactly 3 short things to do this week that would improve the weak points, most important first}`);
     STATUS.aiOk++;
     const checks = {};
     for (const c of facts.checks) checks[c.id] = String(out.checks?.[c.id] || "");
-    return { reasons: { need: String(out.need || ""), outlook: String(out.outlook || ""), alone: String(out.alone || ""), checks }, steps: (out.steps || []).slice(0, 3).map(String) };
+    const clamp = (x) => Math.max(1, Math.min(99, Math.round(Number(x))));
+    let odds = null;
+    if (Number.isFinite(Number(out.alone_pct)) && Number.isFinite(Number(out.with_pct))) {
+      const w = clamp(out.with_pct);
+      odds = { alone: Math.min(clamp(out.alone_pct), w), with: w, engine: { alone: verdict.alone?.pct, with: verdict.outlook?.pct } };
+    }
+    return { odds, reasons: { need: String(out.need || ""), outlook: String(out.outlook || ""), alone: String(out.alone || ""), checks }, steps: (out.steps || []).slice(0, 3).map(String) };
   } catch (e) { aiFailed("explain", e); return mockExplain(lang, verdict); }
 }
 
